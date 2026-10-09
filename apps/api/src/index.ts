@@ -3,7 +3,8 @@ import { seed } from './db/seed';
 import { startReminderJob } from './jobs/reminders';
 
 async function main() {
-  if (process.env.SEED_ON_BOOT !== 'false') {
+  // The seed replaces all data, so it never runs in production. In development it gives each start the sample data.
+  if (process.env.NODE_ENV !== 'production' && process.env.SEED_ON_BOOT !== 'false') {
     seed();
   }
   const app = await buildApp();

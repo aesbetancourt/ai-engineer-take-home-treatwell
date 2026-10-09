@@ -8,7 +8,7 @@ const apiRoot = path.resolve(import.meta.dirname, '../..');
 
 export type Replicas = { baseUrls: string[]; stop: () => Promise<void> };
 
-function freePort(): Promise<number> {
+export function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const srv = net.createServer();
     srv.listen(0, () => {

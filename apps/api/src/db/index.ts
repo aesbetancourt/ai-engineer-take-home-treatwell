@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import fs from 'node:fs';
 import path from 'node:path';
 import * as schema from './schema';
@@ -14,6 +13,6 @@ const sqlite = new Database(dbPath);
 // so that the switch to WAL also waits. WAL lets a replica read while another one writes.
 sqlite.pragma('busy_timeout = 5000');
 sqlite.pragma('journal_mode = WAL');
+// This module only opens the connection. It never creates or alters a table: `yarn db:migrate` does that, as a
+// release step. See docs/migrations.md.
 export const db = drizzle(sqlite, { schema });
-
-migrate(db, { migrationsFolder: path.resolve(import.meta.dirname, '../../drizzle') });
