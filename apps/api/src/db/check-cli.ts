@@ -50,7 +50,9 @@ function migrationsCoverSchema(): boolean {
       console.log('db:check passed: the migrations cover schema.ts.');
       return true;
     }
-    console.error('db:check failed: drizzle-kit did not give a clear result. Its output was:\n');
+    console.error('db:check failed: drizzle-kit did not give a clear result.');
+    console.error('A renamed column or table has this effect, because drizzle-kit asks a question about it.');
+    console.error('Run `yarn db:generate` in a terminal and answer the question. The output of drizzle-kit was:\n');
     console.error(output || String(run.error ?? `exit code ${run.status}`));
     return false;
   } finally {
