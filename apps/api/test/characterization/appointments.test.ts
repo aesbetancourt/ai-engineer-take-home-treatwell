@@ -139,14 +139,14 @@ describe('POST /appointments', () => {
     expect(res.status).toBe(409);
   });
 
-  it('rejects an appointment that starts as another one ends', async () => {
-    // The haircut above ends at 10:30, so 10:30 is taken.
+  it('accepts an appointment that starts as another one ends', async () => {
+    // The haircut above ends at 10:30. Back-to-back is fine, so 10:30 is free.
     const res = await api.post('/appointments', {
       customerId: 2,
       treatmentId: 7,
       startsAt: '2026-10-05T10:30:00.000Z',
     });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
   });
 
   it('accepts an appointment well clear of the customer\'s others', async () => {
