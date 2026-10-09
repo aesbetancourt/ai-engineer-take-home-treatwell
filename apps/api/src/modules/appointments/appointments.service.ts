@@ -57,7 +57,8 @@ export function createAppointment(body: CreateAppointmentBody): Appointment {
   const hasOverlap = repository.listAppointmentRowsOfCustomer(customer.id).some((existing) => {
     const existingStart = new Date(existing.appointment.startsAt).getTime();
     const existingEnd = existingStart + existing.treatment.durationMin * MINUTE;
-    return start <= existingEnd && end >= existingStart;
+    // Back-to-back is fine: an appointment can start at the instant another one ends.
+    return start < existingEnd && end > existingStart;
   });
   if (hasOverlap) {
     throw new ConflictError('Customer already has an appointment at this time');

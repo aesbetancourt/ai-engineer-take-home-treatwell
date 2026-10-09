@@ -22,3 +22,20 @@ describe('GET /appointments', () => {
     expect(res.body).toEqual([]);
   });
 });
+
+describe('POST /appointments: overlap', () => {
+  it('accepts an appointment that ends as another one starts', async () => {
+    // Customer 2 has a haircut from 10:00 to 10:30 on 2026-10-05. A 30 minute haircut from 09:30 ends at 10:00.
+    const res = await api.post('/appointments', {
+      customerId: 2,
+      treatmentId: 2,
+      startsAt: '2026-10-05T09:30:00.000Z',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      status: 'pending',
+      startsAt: '2026-10-05T09:30:00.000Z',
+      endsAt: '2026-10-05T10:00:00.000Z',
+    });
+  });
+});
