@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { registerRoutes } from './routes';
+import { registerErrorHandler } from './shared/error-handler';
 
 export async function buildApp() {
   const app = Fastify();
@@ -13,6 +14,7 @@ export async function buildApp() {
     }
   });
 
+  registerErrorHandler(app);
   registerRoutes(app);
   return app;
 }
