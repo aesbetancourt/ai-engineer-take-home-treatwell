@@ -16,6 +16,15 @@ export type AppointmentRow = {
   treatment: typeof treatments.$inferSelect;
 };
 
+/**
+ * Runs the reads and the writes of `work` as one transaction. It takes the write lock at the start, so another
+ * replica cannot write between a check and the write that depends on it. `work` must be synchronous.
+ */
+export function inWriteTransaction<T>(work: () => T): T {
+  // The module has one connection, so each query inside `work` is part of this transaction.
+  return db.transaction(work, { behavior: 'immediate' });
+}
+
 function selectAppointmentRows() {
   return db
     .select({ appointment: appointments, customer: customers, treatment: treatments })

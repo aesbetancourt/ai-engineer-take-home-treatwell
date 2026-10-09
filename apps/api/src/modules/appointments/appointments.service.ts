@@ -73,31 +73,39 @@ function assertNoOverlap({ customerId, startsAt, durationMin, ignoreAppointmentI
 
 /** Books a pending appointment. The price is copied from the treatment, and a customer cannot be double-booked. */
 export function createAppointment(body: CreateAppointmentBody): Appointment {
-  const customer = repository.findCustomer(body.customerId);
-  if (!customer) {
-    throw new NotFoundError('Customer not found');
-  }
-  const treatment = repository.findTreatment(body.treatmentId);
-  if (!treatment) {
-    throw new NotFoundError('Treatment not found');
-  }
+  // The checks and the insert are one transaction, so two replicas cannot both pass the overlap check.
+  return repository.inWriteTransaction(() => {
+    const customer = repository.findCustomer(body.customerId);
+    if (!customer) {
+      throw new NotFoundError('Customer not found');
+    }
+    const treatment = repository.findTreatment(body.treatmentId);
+    if (!treatment) {
+      throw new NotFoundError('Treatment not found');
+    }
+    assertNoOverlap({ customerId: customer.id, startsAt: body.startsAt, durationMin: treatment.durationMin });
 
-  assertNoOverlap({ customerId: customer.id, startsAt: body.startsAt, durationMin: treatment.durationMin });
-
-  const appointment = repository.insertAppointment({
-    customerId: customer.id,
-    treatmentId: treatment.id,
-    startsAt: toUtcIso(body.startsAt),
-    status: statuses.pending,
-    price: treatment.price,
-    notes: body.notes || null,
-    createdAt: Date.now(),
+    const appointment = repository.insertAppointment({
+      customerId: customer.id,
+      treatmentId: treatment.id,
+      startsAt: toUtcIso(body.startsAt),
+      status: statuses.pending,
+      price: treatment.price,
+      notes: body.notes || null,
+      createdAt: Date.now(),
+    });
+    return toAppointment({ appointment, customer, treatment });
   });
-  return toAppointment({ appointment, customer, treatment });
 }
 
 /** Changes the status, the notes or the start time. Cancelling is final, and a new start time cannot double-book. */
 export function updateAppointment(id: number, body: UpdateAppointmentBody): Appointment {
+  // The checks and the update are one transaction, as in createAppointment.
+  return repository.inWriteTransaction(() => applyUpdate(id, body));
+}
+
+/** Checks the status rule and the overlap rule, then writes the changes. It runs inside the transaction. */
+function applyUpdate(id: number, body: UpdateAppointmentBody): Appointment {
   const row = repository.findAppointmentRow(id);
   if (!row) {
     throw new NotFoundError('Appointment not found');
