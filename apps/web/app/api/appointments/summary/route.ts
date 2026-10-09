@@ -1,5 +1,5 @@
-import { proxyToApi } from '../../../../lib/api';
+import { forwardToApi } from '../../../../lib/api';
 
 export function GET() {
-  return proxyToApi('/appointments/summary');
+  return forwardToApi('/appointments/summary');
 }

@@ -14,7 +14,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
   if (!id.success) {
     return NextResponse.json(notFound, { status: 404 });
   }
-  const { status, body } = await requestApi('/appointments/' + id.data);
+  // A rejected request means that the API did not answer, or that its answer was not JSON.
+  const { status, body } = await requestApi('/appointments/' + id.data).catch(() => ({ status: 502, body: undefined }));
   if (status === 404) {
     return NextResponse.json(notFound, { status: 404 });
   }

@@ -26,9 +26,9 @@ export default function AppointmentsPage() {
     let url = '/api/appointments?';
     if (status) url += 'status=' + status + '&';
     if (date) url += 'date=' + date;
-    fetch(url)
-      .then((r) => r.json())
-      .then((d) => setAppointments(d));
+    fetch(url).then(async (r) => {
+      if (r.ok) setAppointments(await r.json());
+    });
   }
 
   useEffect(() => {

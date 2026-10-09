@@ -7,9 +7,9 @@ export default function Home() {
   const [summary, setSummary] = useState<AppointmentSummary | null>(null);
 
   useEffect(() => {
-    fetch('/api/appointments/summary')
-      .then((r) => r.json())
-      .then((d) => setSummary(d));
+    fetch('/api/appointments/summary').then(async (r) => {
+      if (r.ok) setSummary(await r.json());
+    });
   }, []);
 
   return (
