@@ -37,6 +37,18 @@ export const appointmentSchema = z.object({
 });
 export type Appointment = z.infer<typeof appointmentSchema>;
 
+/** What a customer can see of an appointment. It holds no notes, and no email or phone of the customer. */
+export const publicAppointmentSchema = appointmentSchema
+  .pick({ id: true, startsAt: true, endsAt: true, status: true, price: true })
+  .extend({
+    customer: appointmentCustomerSchema.pick({ name: true }),
+    treatment: appointmentTreatmentSchema.pick({ name: true, durationMin: true }),
+  });
+export type PublicAppointment = z.infer<typeof publicAppointmentSchema>;
+
+/** The appointment id in a URL path: digits only. */
+export const appointmentIdParamSchema = z.string().regex(/^\d+$/);
+
 export const appointmentSummarySchema = z.object({
   total: z.number().int(),
   byStatus: z.record(z.string(), z.number().int()),

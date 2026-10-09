@@ -2,19 +2,25 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import type { Appointment } from '@venue/contract';
+import type { PublicAppointment } from '@venue/contract';
 
 // Shareable page: the customer opens it from the confirmation email.
 export default function ConfirmationPage() {
   const params = useParams<{ id: string }>();
-  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [appointment, setAppointment] = useState<PublicAppointment | null>(null);
+  const [hasFailed, setHasFailed] = useState(false);
 
   useEffect(() => {
-    fetch('/api/appointments/' + params.id)
-      .then((r) => r.json())
-      .then((d) => setAppointment(d));
+    fetch('/api/appointments/' + params.id + '/confirmation').then(async (r) => {
+      if (r.ok) {
+        setAppointment(await r.json());
+      } else {
+        setHasFailed(true);
+      }
+    });
   }, [params.id]);
 
+  if (hasFailed) return <p>We could not load this appointment.</p>;
   if (!appointment) return <p>Loading...</p>;
 
   return (

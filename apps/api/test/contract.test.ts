@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { appointmentSchema, appointmentSummarySchema, errorBodySchema } from '@venue/contract';
+import { appointmentSchema, appointmentSummarySchema, errorBodySchema, publicAppointmentSchema } from '@venue/contract';
 import { startServer, type TestServer } from './characterization/helpers/server';
 
 let api: TestServer;
@@ -57,5 +57,23 @@ describe('the error contract', () => {
     const res = await api.get('/no-such-route');
     expect(res.status).toBe(404);
     expect(() => errorBodySchema.strict().parse(res.body)).not.toThrow();
+  });
+});
+
+describe('the public appointment contract', () => {
+  it('keeps only what a customer can see', async () => {
+    const res = await api.get('/appointments/1');
+    expect(res.status).toBe(200);
+    expect(res.body.notes).toBe('Prefers stylist Anna');
+
+    expect(publicAppointmentSchema.parse(res.body)).toEqual({
+      id: 1,
+      startsAt: '2026-10-05T09:00:00.000Z',
+      endsAt: '2026-10-05T10:00:00.000Z',
+      status: 'confirmed',
+      price: 49.9,
+      customer: { name: 'Emma Schneider' },
+      treatment: { name: "Women's Cut & Blow-dry", durationMin: 60 },
+    });
   });
 });
