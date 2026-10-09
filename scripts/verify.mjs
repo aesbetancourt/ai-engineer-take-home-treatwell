@@ -11,6 +11,7 @@ const steps = [
   { name: 'eslint', cmd: 'yarn eslint .' },
   { name: 'knip', cmd: 'yarn knip' },
   { name: 'jscpd', cmd: 'yarn jscpd' },
+  { name: 'db:check', cmd: 'yarn db:check' },
   { name: 'tests', cmd: 'yarn test' },
 ];
 

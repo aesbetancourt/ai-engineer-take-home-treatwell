@@ -11,6 +11,7 @@
     "test": "yarn workspace @venue/api test",
     "verify": "node scripts/verify.mjs",
     "db:generate": "yarn workspace @venue/api db:generate",
+    "db:check": "yarn workspace @venue/api db:check",
     "db:migrate": "yarn workspace @venue/api db:migrate",
     "db:seed": "yarn workspace @venue/api db:seed"
   },

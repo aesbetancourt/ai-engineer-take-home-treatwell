@@ -5,6 +5,8 @@ node_modules
 dist
 coverage
 apps/api/data
+# The copy that `yarn db:check` makes. The check removes it, but a killed run can leave it.
+apps/api/.db-check-*
 *.db
 *.db-journal
 .env.local
