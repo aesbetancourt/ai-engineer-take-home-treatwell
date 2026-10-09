@@ -1,19 +1,33 @@
 import {
   appointmentStatusSchema,
+  auditActionSchema,
+  auditedFieldSchema,
   venueTimeToUtc,
   type Appointment,
   type AppointmentSummary,
+  type AuditAction,
+  type AuditChanges,
+  type AuditEntry,
   type CreateAppointmentBody,
   type ListAppointmentsQuery,
   type ListAppointmentsResponse,
   type UpdateAppointmentBody,
 } from '@venue/contract';
 import { ConflictError, NotFoundError } from '../../shared/errors';
-import { MINUTE, toAppointment, toStatus, toUtcStart } from './appointments.mapper';
+import {
+  MINUTE,
+  toAppointment,
+  toAuditEntry,
+  toAuditedValues,
+  toStatus,
+  toUtcStart,
+  type AuditedValues,
+} from './appointments.mapper';
 import * as repository from './appointments.repository';
 
 const DAY = 24 * 60 * MINUTE;
 const statuses = appointmentStatusSchema.enum;
+const auditActions = auditActionSchema.enum;
 const REVENUE_STATUSES: string[] = [statuses.confirmed, statuses.completed];
 
 /** Returns the UTC instant at which a date starts in the venue. */
@@ -100,9 +114,29 @@ function assertNoOverlap({ customerId, startsAt, durationMin, ignoreAppointmentI
   }
 }
 
+type AuditOptions = { appointmentId: number; action: AuditAction; before: AuditedValues | null; after: AuditedValues | null };
+
+/**
+ * Writes the audit entry of a change, with each field whose value differs. A create has no `before`, and a delete
+ * has no `after`. It writes nothing when no value differs. It runs inside the transaction of the change.
+ */
+function recordAudit({ appointmentId, action, before, after }: AuditOptions): void {
+  const changes: AuditChanges = {};
+  for (const field of auditedFieldSchema.options) {
+    const from = before ? before[field] : null;
+    const to = after ? after[field] : null;
+    if (before === null || after === null || from !== to) {
+      changes[field] = { from, to };
+    }
+  }
+  if (Object.keys(changes).length > 0) {
+    repository.insertAuditRecord({ appointmentId, action, at: new Date().toISOString(), changes });
+  }
+}
+
 /** Books a pending appointment. The price is copied from the treatment, and a customer cannot be double-booked. */
 export function createAppointment(body: CreateAppointmentBody): Appointment {
-  // The checks and the insert are one transaction, so two replicas cannot both pass the overlap check.
+  // The checks, the insert and the audit entry are one transaction, so two replicas cannot both pass the overlap check.
   return repository.inWriteTransaction(() => {
     const customer = repository.findCustomer(body.customerId);
     if (!customer) {
@@ -123,53 +157,88 @@ export function createAppointment(body: CreateAppointmentBody): Appointment {
       notes: body.notes || null,
       createdAt: Date.now(),
     });
+    recordAudit({
+      appointmentId: appointment.id,
+      action: auditActions.create,
+      before: null,
+      after: toAuditedValues(appointment),
+    });
     return toAppointment({ appointment, customer, treatment });
   });
 }
 
 /** Changes the status, the notes or the start time. Cancelling is final, and a new start time cannot double-book. */
 export function updateAppointment(id: number, body: UpdateAppointmentBody): Appointment {
-  // The checks and the update are one transaction, as in createAppointment.
+  // The checks, the update and the audit entry are one transaction, as in createAppointment.
   return repository.inWriteTransaction(() => applyUpdate(id, body));
 }
 
-/** Checks the status rule and the overlap rule, then writes the changes. It runs inside the transaction. */
+/** Checks the status rule and the overlap rule, then writes the values that differ. It runs inside the transaction. */
 function applyUpdate(id: number, body: UpdateAppointmentBody): Appointment {
   const row = repository.findAppointmentRow(id);
   if (!row) {
     throw new NotFoundError('Appointment not found');
   }
-  const isAlreadyCancelled = isCancelled(row.appointment.status);
-  if (isAlreadyCancelled && body.status !== undefined && body.status !== statuses.cancelled) {
+  const before = toAuditedValues(row.appointment);
+  if (before.status === statuses.cancelled && body.status !== undefined && body.status !== statuses.cancelled) {
     throw new ConflictError('A cancelled appointment cannot get another status');
   }
-  // A cancelled appointment keeps its stored status, so cancelled on cancelled changes nothing.
-  const changes = { ...body };
-  if (isAlreadyCancelled) {
-    changes.status = undefined;
+  // The request in the form that the API shows, so that it compares with the current values.
+  const after: AuditedValues = { ...before };
+  if (body.status !== undefined) {
+    after.status = body.status;
   }
-  if (changes.startsAt !== undefined) {
-    changes.startsAt = toUtcIso(changes.startsAt);
+  if (body.notes !== undefined) {
+    after.notes = body.notes;
   }
-  const status = body.status ?? row.appointment.status;
-  if (body.startsAt !== undefined && !isCancelled(status)) {
+  if (body.startsAt !== undefined) {
+    after.startsAt = toUtcIso(body.startsAt);
+  }
+  if (after.startsAt !== before.startsAt && after.status !== statuses.cancelled) {
     assertNoOverlap({
       customerId: row.customer.id,
-      startsAt: body.startsAt,
+      startsAt: after.startsAt,
       durationMin: row.treatment.durationMin,
       ignoreAppointmentId: id,
     });
   }
-  if (Object.values(changes).some((value) => value !== undefined)) {
-    repository.updateAppointment(id, changes);
+  // Only a value that differs is written. A legacy appointment keeps its stored status and start time
+  // when the request repeats the values that the API shows.
+  const changes: repository.AppointmentChanges = {};
+  if (after.status !== before.status) {
+    changes.status = after.status;
   }
+  if (after.notes !== before.notes) {
+    changes.notes = after.notes;
+  }
+  if (after.startsAt !== before.startsAt) {
+    changes.startsAt = after.startsAt;
+  }
+  if (Object.keys(changes).length === 0) {
+    return toAppointment(row);
+  }
+  repository.updateAppointment(id, changes);
+  recordAudit({ appointmentId: id, action: auditActions.update, before, after });
   return getAppointment(id);
 }
 
 /** Deletes an appointment. It stays in the database, and each read and each rule leaves it out from then on. */
 export function deleteAppointment(id: number): void {
-  const wasDeleted = repository.markAppointmentDeleted(id, new Date().toISOString());
-  if (!wasDeleted) {
+  // The delete and its audit entry are one transaction.
+  repository.inWriteTransaction(() => {
+    const row = repository.findAppointmentRow(id);
+    if (!row) {
+      throw new NotFoundError('Appointment not found');
+    }
+    repository.markAppointmentDeleted(id, new Date().toISOString());
+    recordAudit({ appointmentId: id, action: auditActions.delete, before: toAuditedValues(row.appointment), after: null });
+  });
+}
+
+/** Returns the audit trail of an appointment, oldest first. A deleted appointment keeps its trail. */
+export function getAppointmentAudit(id: number): AuditEntry[] {
+  if (!repository.hasAppointmentRecord(id)) {
     throw new NotFoundError('Appointment not found');
   }
+  return repository.listAuditRecords(id).map(toAuditEntry);
 }

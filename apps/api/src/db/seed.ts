@@ -1,10 +1,12 @@
 import { db } from './index';
-import { appointments, customers, treatments } from './schema';
+import { appointmentAudit, appointments, customers, treatments } from './schema';
 
 const day = (n: number) => `2026-10-${String(n).padStart(2, '0')}`;
 const created = 1759300000000;
 
 export function seed() {
+  // The seed gives the appointments their ids again, so the audit trail of the old ones must go.
+  db.delete(appointmentAudit).run();
   db.delete(appointments).run();
   db.delete(customers).run();
   db.delete(treatments).run();

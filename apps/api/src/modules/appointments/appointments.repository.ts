@@ -8,14 +8,16 @@ import {
   type SortDirection,
 } from '@venue/contract';
 import { db } from '../../db';
-import { appointments, customers, treatments } from '../../db/schema';
+import { appointmentAudit, appointments, customers, treatments } from '../../db/schema';
 
 const CANCELLED = appointmentStatusSchema.enum.cancelled;
 const CONFIRMED = appointmentStatusSchema.enum.confirmed;
 
-type AppointmentRecord = typeof appointments.$inferSelect;
+export type AppointmentRecord = typeof appointments.$inferSelect;
+export type AuditRecord = typeof appointmentAudit.$inferSelect;
+type NewAuditRecord = typeof appointmentAudit.$inferInsert;
 type NewAppointmentRecord = typeof appointments.$inferInsert;
-type AppointmentChanges = Partial<Pick<AppointmentRecord, 'status' | 'notes' | 'startsAt'>>;
+export type AppointmentChanges = Partial<Pick<AppointmentRecord, 'status' | 'notes' | 'startsAt'>>;
 
 /** An appointment with the customer and the treatment it books. */
 export type AppointmentRow = {
@@ -163,4 +165,24 @@ export function findCustomer(id: number) {
 
 export function findTreatment(id: number) {
   return db.select().from(treatments).where(eq(treatments.id, id)).get();
+}
+
+/** Tells whether an appointment with this id was ever booked. A deleted appointment counts. */
+export function hasAppointmentRecord(id: number): boolean {
+  return db.select({ id: appointments.id }).from(appointments).where(eq(appointments.id, id)).get() !== undefined;
+}
+
+/** Writes one audit entry. Call it inside the write transaction of the change that it records. */
+export function insertAuditRecord(values: NewAuditRecord): void {
+  db.insert(appointmentAudit).values(values).run();
+}
+
+/** Returns the audit trail of an appointment, oldest first. */
+export function listAuditRecords(appointmentId: number): AuditRecord[] {
+  return db
+    .select()
+    .from(appointmentAudit)
+    .where(eq(appointmentAudit.appointmentId, appointmentId))
+    .orderBy(appointmentAudit.id)
+    .all();
 }

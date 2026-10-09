@@ -1,5 +1,13 @@
-import { LEGACY_CANCELLED_STATUS, appointmentStatusSchema, type Appointment, type AppointmentStatus } from '@venue/contract';
-import type { AppointmentRow } from './appointments.repository';
+import {
+  LEGACY_CANCELLED_STATUS,
+  appointmentStatusSchema,
+  type Appointment,
+  type AppointmentStatus,
+  type AuditEntry,
+  type AuditValue,
+  type AuditedField,
+} from '@venue/contract';
+import type { AppointmentRecord, AppointmentRow, AuditRecord } from './appointments.repository';
 
 export const MINUTE = 60 * 1000;
 
@@ -34,5 +42,36 @@ export function toAppointment({ appointment, customer, treatment }: AppointmentR
     createdAt: appointment.createdAt,
     customer,
     treatment,
+  };
+}
+
+/** The value of each audited field of an appointment, as the API shows it. */
+export type AuditedValues = {
+  customerId: number;
+  treatmentId: number;
+  startsAt: string;
+  status: AppointmentStatus;
+  price: number;
+  notes: string | null;
+} & Record<AuditedField, AuditValue>;
+
+/** Returns the audited fields as the API shows them: a UTC start time and a status of the contract. */
+export function toAuditedValues(appointment: AppointmentRecord): AuditedValues {
+  return {
+    customerId: appointment.customerId,
+    treatmentId: appointment.treatmentId,
+    startsAt: toUtcStart(appointment),
+    status: toStatus(appointment.status),
+    price: appointment.price,
+    notes: appointment.notes,
+  };
+}
+
+export function toAuditEntry(record: AuditRecord): AuditEntry {
+  return {
+    action: record.action,
+    appointmentId: record.appointmentId,
+    at: record.at,
+    changes: record.changes,
   };
 }
