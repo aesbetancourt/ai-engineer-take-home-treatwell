@@ -1997,6 +1997,7 @@ __metadata:
     "@types/better-sqlite3": "npm:^7.6.13"
     "@types/lodash": "npm:^4.17.0"
     "@types/node": "npm:^22.0.0"
+    "@venue/contract": "workspace:*"
     better-sqlite3: "npm:13.0.3"
     drizzle-kit: "npm:0.31.11"
     drizzle-orm: "npm:0.45.3"
@@ -2009,6 +2010,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@venue/contract@workspace:*, @venue/contract@workspace:packages/contract":
+  version: 0.0.0-use.local
+  resolution: "@venue/contract@workspace:packages/contract"
+  dependencies:
+    zod: "npm:^4.6.5"
+  languageName: unknown
+  linkType: soft
+
 "@venue/web@workspace:apps/web":
   version: 0.0.0-use.local
   resolution: "@venue/web@workspace:apps/web"
@@ -2016,6 +2025,7 @@ __metadata:
     "@types/node": "npm:^22.0.0"
     "@types/react": "npm:^19.0.0"
     "@types/react-dom": "npm:^19.0.0"
+    "@venue/contract": "workspace:*"
     dayjs: "npm:^1.11.13"
     next: "npm:16.3.8"
     react: "npm:19.3.0"
@@ -5573,7 +5583,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^3.25.0 || ^4.0.0, zod@npm:^4.1.11":
+"zod@npm:^3.25.0 || ^4.0.0, zod@npm:^4.1.11, zod@npm:^4.6.5":
   version: 4.6.5
   resolution: "zod@npm:4.6.5"
   checksum: 10c0/32eb6c5e98becbe045675b2141c3611451c16ba567f9779231d79af41c4d651ca1c22f154aef7e6c6e77b929f23e43f1154ca05b82e119e922353725d6776af5
