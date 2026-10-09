@@ -15,6 +15,13 @@
       "when": 1791212388090,
       "tag": "0001_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791563612799,
+      "tag": "0002_starts_at_utc",
+      "breakpoints": true
     }
   ]
 }
