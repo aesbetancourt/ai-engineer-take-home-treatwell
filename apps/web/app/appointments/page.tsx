@@ -64,6 +64,8 @@ function AppointmentList() {
   const [startsAt, setStartsAt] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
+  // The appointment whose row asks "Delete this appointment?". The delete needs a second click.
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     // An answer to an older URL can arrive after the answer to a newer one. Only the newest one counts.
@@ -183,6 +185,13 @@ function AppointmentList() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     }).then(() => load());
+  }
+
+  function deleteAppointment(id: number) {
+    fetch('/api/appointments/' + id, { method: 'DELETE' }).then(() => {
+      setConfirmingDeleteId(null);
+      load();
+    });
   }
 
   return (
@@ -335,7 +344,22 @@ function AppointmentList() {
                     Cancel
                   </button>
                 )}{' '}
-                <Link href={'/appointments/' + a.id + '/confirmation'}>Confirmation</Link>
+                <Link href={'/appointments/' + a.id + '/confirmation'}>Confirmation</Link>{' '}
+                {confirmingDeleteId === a.id ? (
+                  <span role="group" aria-label="Confirm the deletion">
+                    Delete this appointment?{' '}
+                    <button className="small danger" onClick={() => deleteAppointment(a.id)}>
+                      Yes, delete
+                    </button>{' '}
+                    <button className="small secondary" onClick={() => setConfirmingDeleteId(null)}>
+                      Keep
+                    </button>
+                  </span>
+                ) : (
+                  <button className="small secondary" onClick={() => setConfirmingDeleteId(a.id)}>
+                    Delete
+                  </button>
+                )}
               </td>
             </tr>
           ))}

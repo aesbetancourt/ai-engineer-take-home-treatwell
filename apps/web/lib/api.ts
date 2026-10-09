@@ -11,7 +11,7 @@ type Schema<T> = {
   safeParse(input: unknown): { success: true; data: T } | { success: false; error: { issues: unknown[] } };
 };
 
-type RequestOptions = { method?: 'GET' | 'POST' | 'PATCH'; body?: unknown };
+type RequestOptions = { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown };
 
 /** Sends one request to the API from the server. Returns the status code and the JSON body of the API. */
 export async function requestApi(path: string, { method = 'GET', body }: RequestOptions = {}) {
@@ -27,7 +27,8 @@ export async function requestApi(path: string, { method = 'GET', body }: Request
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const json: unknown = await res.json();
+  // A 204 answer has no body.
+  const json: unknown = res.status === 204 ? null : await res.json();
   return { status: res.status, body: json };
 }
 
@@ -49,6 +50,9 @@ export function errorResponse({ status, code, message, details }: ErrorResponseO
 export async function forwardToApi(path: string, options: RequestOptions = {}) {
   try {
     const { status, body } = await requestApi(path, options);
+    if (status === 204) {
+      return new NextResponse(null, { status });
+    }
     return NextResponse.json(body, { status });
   } catch {
     // The API did not answer, or its answer was not JSON.

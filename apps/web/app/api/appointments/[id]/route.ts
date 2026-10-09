@@ -26,3 +26,11 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   }
   return forwardToApi('/appointments/' + id.data, { method: 'PATCH', body: body.data });
 }
+
+export async function DELETE(_req: Request, { params }: RouteContext) {
+  const id = appointmentIdParamSchema.safeParse((await params).id);
+  if (!id.success) {
+    return notFound();
+  }
+  return forwardToApi('/appointments/' + id.data, { method: 'DELETE' });
+}
