@@ -10,16 +10,14 @@ afterAll(async () => {
 });
 
 describe('GET /appointments', () => {
-  it('treats SQL in the status filter as a plain value', async () => {
+  it('rejects SQL in the status filter', async () => {
     const res = await api.get(`/appointments?status=${encodeURIComponent("x' OR '1'='1")}`);
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.status).toBe(400);
   });
 
-  it('treats a quote in the date filter as a plain value', async () => {
-    const res = await api.get(`/appointments?date=${encodeURIComponent("'")}`);
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+  it('rejects a quote in the date filter', async () => {
+    const res = await api.get(`/appointments?from=${encodeURIComponent("'")}`);
+    expect(res.status).toBe(400);
   });
 });
 
@@ -156,7 +154,7 @@ describe('the startsAt input', () => {
   });
 
   it('stores a time with an offset in UTC', async () => {
-    // 00:30 at +02:00 on 5 November is 22:30 UTC on 4 November. The date filter reads the stored value.
+    // 00:30 at +02:00 on 5 November is 22:30 UTC on 4 November, which is 23:30 in the venue on 4 November.
     const created = await api.post('/appointments', {
       customerId: 7,
       treatmentId: 2,
@@ -164,9 +162,10 @@ describe('the startsAt input', () => {
     });
     expect(created.status).toBe(201);
 
-    const res = await api.get('/appointments?date=2026-11-04');
+    const res = await api.get('/appointments?from=2026-11-04&to=2026-11-04');
     expect(res.status).toBe(200);
-    expect(res.body.map((a: any) => a.id)).toEqual([created.body.id]);
+    expect(res.body.items.map((a: any) => a.id)).toEqual([created.body.id]);
+    expect(res.body.items[0].startsAt).toBe('2026-11-04T22:30:00.000Z');
   });
 
   it.each([

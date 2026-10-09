@@ -19,8 +19,8 @@ const strictAppointmentSchema = appointmentSchema.extend({
 describe('the appointment contract', () => {
   it('describes every appointment in the list, legacy appointments included', async () => {
     const res = await api.get('/appointments');
-    expect(res.body).toHaveLength(14);
-    for (const appointment of res.body) {
+    expect(res.body.items).toHaveLength(14);
+    for (const appointment of res.body.items) {
       expect(() => strictAppointmentSchema.parse(appointment)).not.toThrow();
     }
   });

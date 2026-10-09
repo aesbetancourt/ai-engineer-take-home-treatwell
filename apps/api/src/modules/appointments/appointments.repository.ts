@@ -1,5 +1,11 @@
-import { and, eq, inArray, isNull, like, type SQL } from 'drizzle-orm';
-import { LEGACY_CANCELLED_STATUS, appointmentStatusSchema, type ListAppointmentsQuery } from '@venue/contract';
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, type SQL } from 'drizzle-orm';
+import {
+  LEGACY_CANCELLED_STATUS,
+  appointmentStatusSchema,
+  type AppointmentSortField,
+  type AppointmentStatus,
+  type SortDirection,
+} from '@venue/contract';
 import { db } from '../../db';
 import { appointments, customers, treatments } from '../../db/schema';
 
@@ -34,7 +40,18 @@ function selectAppointmentRows() {
     .innerJoin(treatments, eq(treatments.id, appointments.treatmentId));
 }
 
-export function listAppointmentRows(filter: ListAppointmentsQuery): AppointmentRow[] {
+/** The filters of the appointment list. The start times are UTC ISO 8601. */
+export type AppointmentFilter = { status?: AppointmentStatus; startsFrom?: string; startsBefore?: string };
+
+type AppointmentPage = { sortBy: AppointmentSortField; sortDir: SortDirection; limit: number; offset: number };
+
+const SORT_COLUMNS = {
+  startsAt: appointments.startsAtUtc,
+  createdAt: appointments.createdAt,
+  price: appointments.price,
+};
+
+function toCondition(filter: AppointmentFilter): SQL | undefined {
   const conditions: SQL[] = [];
   if (filter.status === CANCELLED) {
     // Legacy appointments store the status `canceled`.
@@ -42,13 +59,36 @@ export function listAppointmentRows(filter: ListAppointmentsQuery): AppointmentR
   } else if (filter.status) {
     conditions.push(eq(appointments.status, filter.status));
   }
-  if (filter.date) {
-    conditions.push(like(appointments.startsAt, `${filter.date}%`));
+  if (filter.startsFrom) {
+    conditions.push(gte(appointments.startsAtUtc, filter.startsFrom));
   }
+  if (filter.startsBefore) {
+    conditions.push(lt(appointments.startsAtUtc, filter.startsBefore));
+  }
+  return and(...conditions);
+}
+
+/** Returns one page of the appointments that match the filter. The id makes the order stable for equal values. */
+export function listAppointmentRows(filter: AppointmentFilter, page: AppointmentPage): AppointmentRow[] {
+  const column = SORT_COLUMNS[page.sortBy];
   return selectAppointmentRows()
-    .where(and(...conditions))
-    .orderBy(appointments.startsAtUtc, appointments.id)
+    .where(toCondition(filter))
+    .orderBy(page.sortDir === 'desc' ? desc(column) : asc(column), appointments.id)
+    .limit(page.limit)
+    .offset(page.offset)
     .all();
+}
+
+/** Counts the appointments that match the filter. It uses the joins of the list, so both see the same appointments. */
+export function countAppointmentRows(filter: AppointmentFilter): number {
+  const row = db
+    .select({ total: count() })
+    .from(appointments)
+    .innerJoin(customers, eq(customers.id, appointments.customerId))
+    .innerJoin(treatments, eq(treatments.id, appointments.treatmentId))
+    .where(toCondition(filter))
+    .get();
+  return row?.total ?? 0;
 }
 
 export function findAppointmentRow(id: number): AppointmentRow | undefined {

@@ -11,20 +11,6 @@ afterAll(async () => {
 
 // Records behaviour of the appointment endpoints that the characterization suite does not pin.
 // Read-only checks come first.
-describe('GET /appointments', () => {
-  it('returns an empty list for an unknown status', async () => {
-    const res = await api.get('/appointments?status=banana');
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
-  });
-
-  it('ignores an empty status filter', async () => {
-    const res = await api.get('/appointments?status=');
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(14);
-  });
-});
-
 describe('GET /appointments/:id', () => {
   it('returns a legacy appointment with its start time in UTC and the status cancelled', async () => {
     // Appointment 11 is a 20 minute treatment, imported as '2026-10-08 09:30' in venue time (UTC+2 in October)
@@ -70,14 +56,14 @@ describe('the legacy status canceled', () => {
   it('is cancelled in each item of the list', async () => {
     const res = await api.get('/appointments');
     expect(res.status).toBe(200);
-    const statuses = new Set(res.body.map((a: any) => a.status));
+    const statuses = new Set(res.body.items.map((a: any) => a.status));
     expect([...statuses].sort()).toEqual(['cancelled', 'completed', 'confirmed', 'pending']);
   });
 
   it('matches the status filter cancelled', async () => {
     const res = await api.get('/appointments?status=cancelled');
     expect(res.status).toBe(200);
-    expect(res.body.map((a: any) => a.id).sort((a: number, b: number) => a - b)).toEqual([6, 11, 12]);
+    expect(res.body.items.map((a: any) => a.id).sort((a: number, b: number) => a - b)).toEqual([6, 11, 12]);
   });
 
   it('counts as cancelled in the summary', async () => {
@@ -93,9 +79,9 @@ describe('the legacy status canceled', () => {
 describe('a legacy start time in venue time', () => {
   it('sorts by its UTC time in the list', async () => {
     // On 2026-10-06 the seed has appointment 6 at 09:00 UTC, appointment 5 at 13:00 UTC and appointment 4 at 14:00 UTC.
-    const res = await api.get('/appointments?date=2026-10-06');
+    const res = await api.get('/appointments?from=2026-10-06&to=2026-10-06');
     expect(res.status).toBe(200);
-    expect(res.body.map((a: any) => a.id)).toEqual([6, 5, 4]);
+    expect(res.body.items.map((a: any) => a.id)).toEqual([6, 5, 4]);
   });
 
   it('blocks a new appointment that overlaps its UTC time', async () => {

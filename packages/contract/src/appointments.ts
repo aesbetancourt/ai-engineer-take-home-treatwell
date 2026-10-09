@@ -59,12 +59,43 @@ export type AppointmentSummary = z.infer<typeof appointmentSummarySchema>;
 // A time with no zone has no defined instant, so the input must end in `Z` or an offset.
 const startsAtSchema = z.iso.datetime({ offset: true, error: 'startsAt must be ISO 8601 with Z or an offset' });
 
-// Records the current behaviour: an unknown status matches no appointment, and `date` is a prefix of `startsAt`.
-export const listAppointmentsQuerySchema = z.object({
-  status: z.string().optional(),
-  date: z.string().optional(),
+// A query string holds text, so a number arrives as digits. `1e1`, `1.5` and an empty value are not valid.
+const positiveIntegerParam = z
+  .string()
+  .regex(/^\d+$/)
+  .transform(Number)
+  .pipe(z.number().int().min(1));
+
+export const appointmentSortFieldSchema = z.enum(['startsAt', 'createdAt', 'price']);
+export type AppointmentSortField = z.infer<typeof appointmentSortFieldSchema>;
+
+export const sortDirectionSchema = z.enum(['asc', 'desc']);
+export type SortDirection = z.infer<typeof sortDirectionSchema>;
+
+export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_PAGE_SIZE = 100;
+
+// Strict: a parameter that this schema does not name, the old `date` included, is not valid.
+export const listAppointmentsQuerySchema = z.strictObject({
+  page: positiveIntegerParam.default(1),
+  pageSize: positiveIntegerParam.pipe(z.number().max(MAX_PAGE_SIZE)).default(DEFAULT_PAGE_SIZE),
+  status: appointmentStatusSchema.optional(),
+  // `YYYY-MM-DD`, a date in venue time. Both dates are inclusive.
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+  sortBy: appointmentSortFieldSchema.default('startsAt'),
+  sortDir: sortDirectionSchema.default('asc'),
 });
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsQuerySchema>;
+
+export const listAppointmentsResponseSchema = z.object({
+  items: z.array(appointmentSchema),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  // Counts each appointment that matches the filters, on each page.
+  total: z.number().int(),
+});
+export type ListAppointmentsResponse = z.infer<typeof listAppointmentsResponseSchema>;
 
 export const createAppointmentBodySchema = z.object({
   customerId: z.number().int().positive(),

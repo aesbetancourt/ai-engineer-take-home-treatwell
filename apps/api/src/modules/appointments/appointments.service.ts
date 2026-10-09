@@ -1,21 +1,51 @@
 import {
   appointmentStatusSchema,
+  venueTimeToUtc,
   type Appointment,
   type AppointmentSummary,
   type CreateAppointmentBody,
   type ListAppointmentsQuery,
+  type ListAppointmentsResponse,
   type UpdateAppointmentBody,
 } from '@venue/contract';
 import { ConflictError, NotFoundError } from '../../shared/errors';
 import { MINUTE, toAppointment, toStatus, toUtcStart } from './appointments.mapper';
 import * as repository from './appointments.repository';
 
+const DAY = 24 * 60 * MINUTE;
 const statuses = appointmentStatusSchema.enum;
 const REVENUE_STATUSES: string[] = [statuses.confirmed, statuses.completed];
 
-/** Lists appointments by start time, with an optional status and an optional date prefix. */
-export function listAppointments(query: ListAppointmentsQuery): Appointment[] {
-  return repository.listAppointmentRows(query).map(toAppointment);
+/** Returns the UTC instant at which a date starts in the venue. */
+function startOfVenueDay(date: string): string {
+  return venueTimeToUtc(`${date}T00:00`);
+}
+
+/** Returns the date after a `YYYY-MM-DD` date. */
+function nextDate(date: string): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + DAY).toISOString().slice(0, 10);
+}
+
+/** Lists one page of appointments. `from` and `to` are inclusive dates in venue time, so a day runs from midnight in the venue. */
+export function listAppointments(query: ListAppointmentsQuery): ListAppointmentsResponse {
+  const filter: repository.AppointmentFilter = {
+    status: query.status,
+    startsFrom: query.from ? startOfVenueDay(query.from) : undefined,
+    // The day of `to` is included, so the list ends before the next day starts.
+    startsBefore: query.to ? startOfVenueDay(nextDate(query.to)) : undefined,
+  };
+  const rows = repository.listAppointmentRows(filter, {
+    sortBy: query.sortBy,
+    sortDir: query.sortDir,
+    limit: query.pageSize,
+    offset: (query.page - 1) * query.pageSize,
+  });
+  return {
+    items: rows.map(toAppointment),
+    page: query.page,
+    pageSize: query.pageSize,
+    total: repository.countAppointmentRows(filter),
+  };
 }
 
 /** Counts appointments per status. Revenue counts confirmed and completed appointments only. */
