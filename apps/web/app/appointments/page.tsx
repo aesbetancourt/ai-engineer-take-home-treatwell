@@ -1,11 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 import {
+  DEFAULT_PAGE_SIZE,
+  appointmentSortFieldSchema,
+  appointmentStatusSchema,
   errorBodySchema,
   errorCodes,
   formatVenueTime,
+  sortDirectionSchema,
   venueTimeToUtc,
   type Appointment,
   type AppointmentStatus,
@@ -18,14 +23,37 @@ type Treatment = Appointment['treatment'];
 
 let customerCache: Customer[] | null = null;
 
+const PAGE_SIZES = [10, DEFAULT_PAGE_SIZE, 50, 100];
+const STATUS_LABELS = { pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
+const SORT_LABELS = { startsAt: 'Start time', createdAt: 'Creation time', price: 'Price' };
+const DIRECTION_LABELS = { asc: 'Ascending', desc: 'Descending' };
+
+// `useSearchParams` needs a Suspense boundary, because the URL is not known when Next renders the page ahead of time.
 export default function AppointmentsPage() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <AppointmentList />
+    </Suspense>
+  );
+}
+
+function AppointmentList() {
+  // The URL holds the page, the filters and the sort, so a reload or a shared link shows the same list.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const query = searchParams.toString();
+  const status = searchParams.get('status') ?? '';
+  const from = searchParams.get('from') ?? '';
+  const to = searchParams.get('to') ?? '';
+  const sortBy = searchParams.get('sortBy') ?? appointmentSortFieldSchema.enum.startsAt;
+  const sortDir = searchParams.get('sortDir') ?? sortDirectionSchema.enum.asc;
+  const pageSize = searchParams.get('pageSize') ?? String(DEFAULT_PAGE_SIZE);
+
   const [list, setList] = useState<ListAppointmentsResponse | null>(null);
+  const [hasInvalidQuery, setHasInvalidQuery] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
-  const [status, setStatus] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [customerId, setCustomerId] = useState('');
   const [treatmentId, setTreatmentId] = useState('');
@@ -34,23 +62,38 @@ export default function AppointmentsPage() {
   const [formError, setFormError] = useState('');
 
   function load() {
-    const params = new URLSearchParams({ page: String(page) });
-    if (status) params.set('status', status);
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
-    fetch('/api/appointments?' + params.toString()).then(async (r) => {
+    fetch('/api/appointments?' + query).then(async (r) => {
+      // The BFF answers 400 when the URL holds a value that the contract does not accept.
+      setHasInvalidQuery(r.status === 400);
       if (r.ok) setList(await r.json());
     });
   }
 
   useEffect(() => {
     load();
-  }, [status, from, to, page]);
+  }, [query]);
 
-  // A new filter gives another list, so the page number starts again.
-  function changeFilter(setFilter: (value: string) => void, value: string) {
-    setFilter(value);
-    setPage(1);
+  function replaceQuery(next: URLSearchParams) {
+    const nextQuery = next.toString();
+    router.replace(nextQuery ? pathname + '?' + nextQuery : pathname);
+  }
+
+  // A new filter, sort or page size gives another list, so the page number starts again.
+  function changeControl(name: string, value: string) {
+    const next = new URLSearchParams(searchParams);
+    if (value) {
+      next.set(name, value);
+    } else {
+      next.delete(name);
+    }
+    next.delete('page');
+    replaceQuery(next);
+  }
+
+  function goToPage(page: number) {
+    const next = new URLSearchParams(searchParams);
+    next.set('page', String(page));
+    replaceQuery(next);
   }
 
   const appointments = list?.items ?? [];
@@ -126,21 +169,52 @@ export default function AppointmentsPage() {
       <div className="filters">
         <label>
           Status
-          <select value={status} onChange={(e) => changeFilter(setStatus, e.target.value)}>
+          <select value={status} onChange={(e) => changeControl('status', e.target.value)}>
             <option value="">All</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="completed">Completed</option>
+            {appointmentStatusSchema.options.map((option) => (
+              <option key={option} value={option}>
+                {STATUS_LABELS[option]}
+              </option>
+            ))}
           </select>
         </label>
         <label>
           From
-          <input type="date" value={from} onChange={(e) => changeFilter(setFrom, e.target.value)} />
+          <input type="date" value={from} onChange={(e) => changeControl('from', e.target.value)} />
         </label>
         <label>
           To
-          <input type="date" value={to} onChange={(e) => changeFilter(setTo, e.target.value)} />
+          <input type="date" value={to} onChange={(e) => changeControl('to', e.target.value)} />
+        </label>
+        <label>
+          Sort by
+          <select value={sortBy} onChange={(e) => changeControl('sortBy', e.target.value)}>
+            {appointmentSortFieldSchema.options.map((option) => (
+              <option key={option} value={option}>
+                {SORT_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Order
+          <select value={sortDir} onChange={(e) => changeControl('sortDir', e.target.value)}>
+            {sortDirectionSchema.options.map((option) => (
+              <option key={option} value={option}>
+                {DIRECTION_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Per page
+          <select value={pageSize} onChange={(e) => changeControl('pageSize', e.target.value)}>
+            {PAGE_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
         </label>
         <button className="secondary" onClick={toggleForm}>
           {showForm ? 'Close form' : 'New appointment'}
@@ -188,6 +262,12 @@ export default function AppointmentsPage() {
           )}
           <button onClick={create}>Create appointment</button>
         </div>
+      )}
+
+      {hasInvalidQuery && (
+        <p className="form-error" role="alert">
+          The address holds a filter that is not valid. <Link href={pathname}>Show all appointments</Link>
+        </p>
       )}
 
       <table>
@@ -241,13 +321,13 @@ export default function AppointmentsPage() {
 
       {list && (
         <div className="pagination">
-          <button className="small secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+          <button className="small secondary" disabled={list.page <= 1} onClick={() => goToPage(list.page - 1)}>
             Previous
           </button>
           <span>
             Page {list.page} of {lastPage} ({list.total} appointments)
           </span>
-          <button className="small secondary" disabled={page >= lastPage} onClick={() => setPage(page + 1)}>
+          <button className="small secondary" disabled={list.page >= lastPage} onClick={() => goToPage(list.page + 1)}>
             Next
           </button>
         </div>
