@@ -1,16 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { AppointmentSummary } from '@venue/contract';
 
 export default function Home() {
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<AppointmentSummary | null>(null);
 
   useEffect(() => {
-    // TODO: move this to env
-    fetch('http://localhost:4000/appointments/summary', {
-      // temporary, remove after launch
-      headers: { 'x-api-key': process.env.NEXT_PUBLIC_API_KEY ?? '' },
-    })
+    fetch('/api/appointments/summary')
       .then((r) => r.json())
       .then((d) => setSummary(d));
   }, []);
