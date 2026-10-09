@@ -13,6 +13,7 @@ export type TestServer = {
   get: (url: string) => Promise<HttpResult>;
   post: (url: string, body?: unknown) => Promise<HttpResult>;
   patch: (url: string, body?: unknown) => Promise<HttpResult>;
+  delete: (url: string) => Promise<HttpResult>;
   stop: () => Promise<void>;
 };
 
@@ -94,6 +95,7 @@ export async function startServer(): Promise<TestServer> {
     get: (url) => call('GET', url),
     post: (url, body) => call('POST', url, body ?? {}),
     patch: (url, body) => call('PATCH', url, body ?? {}),
+    delete: (url) => call('DELETE', url),
     stop: async () => {
       try {
         process.kill(-(child.pid as number), 'SIGTERM');
