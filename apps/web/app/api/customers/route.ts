@@ -1,23 +1,9 @@
-import { NextResponse } from 'next/server';
+import { proxyToApi } from '../../../lib/api';
 
-const API = 'http://localhost:4000';
-
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const res = await fetch(API + '/customers' + url.search, {
-    headers: { 'x-api-key': process.env.NEXT_PUBLIC_API_KEY ?? '' },
-  });
-  const data = await res.json();
-  return NextResponse.json(data);
+export function GET(req: Request) {
+  return proxyToApi('/customers' + new URL(req.url).search);
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const res = await fetch(API + '/customers', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': process.env.NEXT_PUBLIC_API_KEY ?? '' },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  return NextResponse.json(data);
+  return proxyToApi('/customers', { method: 'POST', body: await req.json() });
 }

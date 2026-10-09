@@ -1,11 +1,5 @@
-import { NextResponse } from 'next/server';
+import { proxyToApi } from '../../../lib/api';
 
-const API = 'http://localhost:4000';
-
-export async function GET() {
-  const res = await fetch(API + '/treatments', {
-    headers: { 'x-api-key': process.env.NEXT_PUBLIC_API_KEY ?? '' },
-  });
-  const data = await res.json();
-  return NextResponse.json(data);
+export function GET() {
+  return proxyToApi('/treatments');
 }
