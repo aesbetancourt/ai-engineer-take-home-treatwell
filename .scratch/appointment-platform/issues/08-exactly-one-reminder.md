@@ -4,9 +4,14 @@
 
 **Blocked by:** 02 Appointments API as a layered module
 
-**Status:** ready-for-agent
+**Status:** done, not committed
 
-- [ ] The job claims the appointment with one atomic update, and sends the email only when the claim changed one row
-- [ ] The job uses the appointments repository; it does not import Drizzle
-- [ ] A direct test runs the job twice at the same time with a fake mailer and expects one email
+- [x] The job claims the appointment with one atomic update, and sends the email only when the claim changed one row
+- [x] The job uses the appointments repository; it does not import Drizzle
+- [x] A direct test runs the job twice at the same time with a fake mailer and expects one email
 - [ ] The fix is its own `fix` commit; the test fails before it
+
+## Comments
+
+**From ticket 06.** The reminder job still reads the stored `startsAt` with `new Date`, so the 24 hour window of a legacy appointment is off by the venue offset. Ticket 06 left the job alone, because the job has no test yet. In this ticket, read the UTC start time (`toUtcStart` in the appointments mapper, through the repository), and add a direct test with a legacy appointment at the edge of the window.
+
