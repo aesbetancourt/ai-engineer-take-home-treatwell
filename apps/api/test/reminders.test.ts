@@ -12,7 +12,7 @@ process.env.TZ = 'UTC';
 
 // The database module reads `DB_PATH` when it loads, so these imports come after the line above.
 const { db } = await import('../src/db');
-const { appointments, customers, treatments } = await import('../src/db/schema');
+const { appointmentAudit, appointments, customers, treatments } = await import('../src/db/schema');
 const { sendDueReminders } = await import('../src/jobs/reminders');
 
 const HOUR = 60 * 60 * 1000;
@@ -139,5 +139,15 @@ describe('the reminder job', () => {
     await sendDueReminders(mailer.send, NOW);
 
     expect(mailer.sent).toHaveLength(0);
+  });
+
+  it('writes no audit entry when it marks the reminder as sent', async () => {
+    addAppointment(new Date(NOW + 12 * HOUR).toISOString());
+    const mailer = fakeMailer();
+
+    await sendDueReminders(mailer.send, NOW);
+
+    expect(mailer.sent).toHaveLength(1);
+    expect(db.select().from(appointmentAudit).all()).toEqual([]);
   });
 });

@@ -160,7 +160,9 @@ describe('the audit trail of an appointment', () => {
 
   it('gets no second delete entry for a delete that answers 404', async () => {
     expect((await api.delete(`/appointments/${id}`)).status).toBe(404);
-    expect((await auditOf(id)).body).toHaveLength(5);
+    const res = await auditOf(id);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(5);
   });
 });
 
@@ -170,8 +172,12 @@ describe('the audit trail of a legacy appointment', () => {
     expect((await api.patch('/appointments/11', { status: 'cancelled' })).status).toBe(200);
     expect((await api.patch('/appointments/5', { startsAt: '2026-10-06T13:00:00.000Z' })).status).toBe(200);
 
-    expect((await auditOf(11)).body).toEqual([]);
-    expect((await auditOf(5)).body).toEqual([]);
+    const trailOf11 = await auditOf(11);
+    const trailOf5 = await auditOf(5);
+    expect(trailOf11.status).toBe(200);
+    expect(trailOf11.body).toEqual([]);
+    expect(trailOf5.status).toBe(200);
+    expect(trailOf5.body).toEqual([]);
   });
 
   it('records the values that the API shows, not the stored ones', async () => {
