@@ -1,4 +1,3 @@
-import { sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { STAFF_EMAIL_UNIQUE_INDEX, staff } from '../../db/schema';
 import { ConflictError } from '../../shared/errors';
@@ -20,12 +19,8 @@ function isDuplicateEmail(error: unknown): boolean {
 }
 
 export function listStaffRows(): StaffRow[] {
-  // NOCASE puts `anna` before `Zoe`. The id makes the order stable for two equal names.
-  return db
-    .select()
-    .from(staff)
-    .orderBy(sql`${staff.name} COLLATE NOCASE`, staff.id)
-    .all();
+  // The id makes the order stable for two equal names.
+  return db.select().from(staff).orderBy(staff.name, staff.id).all();
 }
 
 /**

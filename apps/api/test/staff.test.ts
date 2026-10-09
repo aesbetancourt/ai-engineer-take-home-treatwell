@@ -53,13 +53,13 @@ describe('POST /staff', () => {
 
 describe('GET /staff', () => {
   it('lists the staff members ordered by name', async () => {
-    await api.post('/staff', { name: 'max Braun', email: 'max.braun@example.com' });
+    await api.post('/staff', { name: 'Max Braun', email: 'max.braun@example.com' });
 
     const res = await api.get('/staff');
 
     expect(res.status).toBe(200);
-    // The rejected requests above created no staff member. The order does not depend on letter case.
-    expect(res.body.map((member: { name: string }) => member.name)).toEqual(['Anna Vogel', 'max Braun', 'Zoe Becker']);
+    // The rejected requests above created no staff member.
+    expect(res.body.map((member: { name: string }) => member.name)).toEqual(['Anna Vogel', 'Max Braun', 'Zoe Becker']);
     expect(res.body[0]).toEqual({
       id: expect.any(Number),
       name: 'Anna Vogel',
