@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const appointmentStatusSchema = z.enum(['pending', 'confirmed', 'completed', 'cancelled']);
 export type AppointmentStatus = z.infer<typeof appointmentStatusSchema>;
 
-/** The spelling that legacy appointments use for the status `cancelled`. */
+/** The spelling that legacy appointments store for the status `cancelled`. No response holds it. */
 export const LEGACY_CANCELLED_STATUS = 'canceled';
 
 const appointmentCustomerSchema = z.object({
@@ -27,7 +27,7 @@ export const appointmentSchema = z.object({
   // UTC ISO 8601, or `YYYY-MM-DD HH:mm` in venue time for a legacy appointment.
   startsAt: z.string(),
   endsAt: z.string(),
-  status: z.union([appointmentStatusSchema, z.literal(LEGACY_CANCELLED_STATUS)]),
+  status: appointmentStatusSchema,
   price: z.number(),
   notes: z.string().nullable(),
   // Epoch milliseconds.

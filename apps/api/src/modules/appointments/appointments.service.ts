@@ -1,5 +1,4 @@
 import {
-  LEGACY_CANCELLED_STATUS,
   appointmentStatusSchema,
   type Appointment,
   type AppointmentSummary,
@@ -8,12 +7,11 @@ import {
   type UpdateAppointmentBody,
 } from '@venue/contract';
 import { ConflictError, NotFoundError } from '../../shared/errors';
-import { MINUTE, toAppointment } from './appointments.mapper';
+import { MINUTE, toAppointment, toStatus } from './appointments.mapper';
 import * as repository from './appointments.repository';
 
 const statuses = appointmentStatusSchema.enum;
 const REVENUE_STATUSES: string[] = [statuses.confirmed, statuses.completed];
-const CANCELLED_STATUSES: string[] = [statuses.cancelled, LEGACY_CANCELLED_STATUS];
 
 /** Lists appointments by start time, with an optional status and an optional date prefix. */
 export function listAppointments(query: ListAppointmentsQuery): Appointment[] {
@@ -26,8 +24,9 @@ export function getAppointmentSummary(): AppointmentSummary {
   const byStatus: Record<string, number> = {};
   let revenue = 0;
   for (const row of rows) {
-    byStatus[row.status] = (byStatus[row.status] ?? 0) + 1;
-    if (REVENUE_STATUSES.includes(row.status)) {
+    const status = toStatus(row.status);
+    byStatus[status] = (byStatus[status] ?? 0) + 1;
+    if (REVENUE_STATUSES.includes(status)) {
       revenue += row.price;
     }
   }
@@ -46,7 +45,7 @@ export function getAppointment(id: number): Appointment {
 type OverlapCheck = { customerId: number; startsAt: string; durationMin: number; ignoreAppointmentId?: number };
 
 function isCancelled(status: string): boolean {
-  return CANCELLED_STATUSES.includes(status);
+  return toStatus(status) === statuses.cancelled;
 }
 
 /** Rejects a start time that makes an overlap with another appointment of the customer. Cancelled appointments do not count. */

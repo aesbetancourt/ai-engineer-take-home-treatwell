@@ -1,7 +1,9 @@
-import { and, eq, like, type SQL } from 'drizzle-orm';
-import type { ListAppointmentsQuery } from '@venue/contract';
+import { and, eq, inArray, like, type SQL } from 'drizzle-orm';
+import { LEGACY_CANCELLED_STATUS, appointmentStatusSchema, type ListAppointmentsQuery } from '@venue/contract';
 import { db } from '../../db';
 import { appointments, customers, treatments } from '../../db/schema';
+
+const CANCELLED = appointmentStatusSchema.enum.cancelled;
 
 type AppointmentRecord = typeof appointments.$inferSelect;
 type NewAppointmentRecord = typeof appointments.$inferInsert;
@@ -24,7 +26,10 @@ function selectAppointmentRows() {
 
 export function listAppointmentRows(filter: ListAppointmentsQuery): AppointmentRow[] {
   const conditions: SQL[] = [];
-  if (filter.status) {
+  if (filter.status === CANCELLED) {
+    // Legacy appointments store the status `canceled`.
+    conditions.push(inArray(appointments.status, [CANCELLED, LEGACY_CANCELLED_STATUS]));
+  } else if (filter.status) {
     conditions.push(eq(appointments.status, filter.status));
   }
   if (filter.date) {
