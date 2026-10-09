@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import type { PublicAppointment } from '@venue/contract';
+import { formatVenueTime, type PublicAppointment } from '@venue/contract';
 
 // Shareable page: the customer opens it from the confirmation email.
 export default function ConfirmationPage() {
@@ -34,7 +34,7 @@ export default function ConfirmationPage() {
           {appointment.treatment.name} ({appointment.treatment.durationMin} min)
         </dd>
         <dt>When</dt>
-        <dd>{new Date(appointment.startsAt).toLocaleString()}</dd>
+        <dd>{formatVenueTime(appointment.startsAt)}</dd>
         <dt>Price</dt>
         <dd>€{appointment.price}</dd>
         <dt>Status</dt>

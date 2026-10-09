@@ -2,7 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { errorBodySchema, errorCodes, type Appointment, type AppointmentStatus } from '@venue/contract';
+import {
+  errorBodySchema,
+  errorCodes,
+  formatVenueTime,
+  venueTimeToUtc,
+  type Appointment,
+  type AppointmentStatus,
+} from '@venue/contract';
 
 // The customer and treatment lists have no schema of their own yet. They return the shapes that an appointment embeds.
 type Customer = Appointment['customer'];
@@ -60,7 +67,7 @@ export default function AppointmentsPage() {
         customerId: Number(customerId),
         treatmentId: Number(treatmentId),
         // An empty start time goes to the API as it is, and the API rejects it.
-        startsAt: startsAt ? new Date(startsAt).toISOString() : '',
+        startsAt: startsAt ? venueTimeToUtc(startsAt) : '',
         notes,
       }),
     }).then(async (r) => {
@@ -149,7 +156,7 @@ export default function AppointmentsPage() {
               </select>
             </label>
             <label>
-              Starts at
+              Starts at (venue time)
               <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
             </label>
             <label>
@@ -181,7 +188,7 @@ export default function AppointmentsPage() {
         <tbody>
           {appointments.map((a) => (
             <tr key={a.id}>
-              <td>{new Date(a.startsAt).toLocaleString()}</td>
+              <td>{formatVenueTime(a.startsAt)}</td>
               <td>
                 {a.customer.name}
                 <br />
