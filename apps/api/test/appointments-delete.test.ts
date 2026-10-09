@@ -13,9 +13,21 @@ afterAll(async () => {
 const DELETED_ID = 4;
 
 describe('DELETE /appointments/:id', () => {
-  it.each(['999', 'abc', '1.5'])('answers 404 for the unknown id %s', async (id) => {
+  // `1e0`, `0x1` and `1.0` are the number 1 for `Number`, but they are not the id of appointment 1.
+  it.each(['999', 'abc', '1.5', '1e0', '0x1', '1.0'])('answers 404 for the id %s', async (id) => {
     const res = await api.delete(`/appointments/${id}`);
     expect(res.status).toBe(404);
+  });
+
+  it('deleted nothing in the requests above', async () => {
+    const res = await api.get('/appointments');
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(14);
+  });
+
+  it.each(['1e0', '0x1'])('answers 404 for a read and a change with the id %s', async (id) => {
+    expect((await api.get(`/appointments/${id}`)).status).toBe(404);
+    expect((await api.patch(`/appointments/${id}`, { notes: 'x' })).status).toBe(404);
   });
 
   it('answers 204 with no body', async () => {

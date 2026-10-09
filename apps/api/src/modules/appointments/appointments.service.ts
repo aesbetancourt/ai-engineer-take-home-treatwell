@@ -168,8 +168,8 @@ function applyUpdate(id: number, body: UpdateAppointmentBody): Appointment {
 
 /** Deletes an appointment. It stays in the database, and each read and each rule leaves it out from then on. */
 export function deleteAppointment(id: number): void {
-  const isDeleted = repository.markAppointmentDeleted(id, new Date().toISOString());
-  if (!isDeleted) {
+  const wasDeleted = repository.markAppointmentDeleted(id, new Date().toISOString());
+  if (!wasDeleted) {
     throw new NotFoundError('Appointment not found');
   }
 }

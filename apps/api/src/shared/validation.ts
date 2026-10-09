@@ -9,3 +9,11 @@ export function parseInput<T>(schema: ZodType<T>, input: unknown): T {
   }
   return result.data;
 }
+
+/**
+ * Reads the id of a URL path with the id schema of the contract. An id that the schema rejects, such as `1e0`,
+ * becomes `NaN`, which no record has, so the caller answers 404 as for an unknown id.
+ */
+export function toId(schema: ZodType<string>, param: string): number {
+  return schema.safeParse(param).success ? Number(param) : Number.NaN;
+}
