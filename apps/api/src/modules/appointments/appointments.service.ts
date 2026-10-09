@@ -34,18 +34,17 @@ export function listAppointments(query: ListAppointmentsQuery): ListAppointments
     // The day of `to` is included, so the list ends before the next day starts.
     startsBefore: query.to ? startOfVenueDay(nextDate(query.to)) : undefined,
   };
-  const rows = repository.listAppointmentRows(filter, {
-    sortBy: query.sortBy,
-    sortDir: query.sortDir,
-    limit: query.pageSize,
-    offset: (query.page - 1) * query.pageSize,
-  });
-  return {
-    items: rows.map(toAppointment),
-    page: query.page,
-    pageSize: query.pageSize,
+  // One transaction, so a write of another replica cannot make the total and the items disagree.
+  const { rows, total } = repository.inReadTransaction(() => ({
+    rows: repository.listAppointmentRows(filter, {
+      sortBy: query.sortBy,
+      sortDir: query.sortDir,
+      limit: query.pageSize,
+      offset: (query.page - 1) * query.pageSize,
+    }),
     total: repository.countAppointmentRows(filter),
-  };
+  }));
+  return { items: rows.map(toAppointment), page: query.page, pageSize: query.pageSize, total };
 }
 
 /** Counts appointments per status. Revenue counts confirmed and completed appointments only. */

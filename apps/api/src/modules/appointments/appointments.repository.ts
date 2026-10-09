@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gte, inArray, isNull, lt, type SQL } from 'd
 import {
   LEGACY_CANCELLED_STATUS,
   appointmentStatusSchema,
+  sortDirectionSchema,
   type AppointmentSortField,
   type AppointmentStatus,
   type SortDirection,
@@ -27,6 +28,11 @@ export type AppointmentRow = {
  * Runs the reads and the writes of `work` as one transaction. It takes the write lock at the start, so another
  * replica cannot write between a check and the write that depends on it. `work` must be synchronous.
  */
+export function inReadTransaction<T>(work: () => T): T {
+  // A deferred transaction: each read inside `work` sees the same state of the database.
+  return db.transaction(work);
+}
+
 export function inWriteTransaction<T>(work: () => T): T {
   // The module has one connection, so each query inside `work` is part of this transaction.
   return db.transaction(work, { behavior: 'immediate' });
@@ -68,12 +74,15 @@ function toCondition(filter: AppointmentFilter): SQL | undefined {
   return and(...conditions);
 }
 
-/** Returns one page of the appointments that match the filter. The id makes the order stable for equal values. */
+/**
+ * Returns one page of the appointments that match the filter. The id is the last sort key, so the order is stable
+ * for equal values. It follows the direction, so `desc` is the exact reverse of `asc`.
+ */
 export function listAppointmentRows(filter: AppointmentFilter, page: AppointmentPage): AppointmentRow[] {
-  const column = SORT_COLUMNS[page.sortBy];
+  const direction = page.sortDir === sortDirectionSchema.enum.desc ? desc : asc;
   return selectAppointmentRows()
     .where(toCondition(filter))
-    .orderBy(page.sortDir === 'desc' ? desc(column) : asc(column), appointments.id)
+    .orderBy(direction(SORT_COLUMNS[page.sortBy]), direction(appointments.id))
     .limit(page.limit)
     .offset(page.offset)
     .all();

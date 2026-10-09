@@ -9,6 +9,8 @@ import { listAppointmentsQuerySchema } from '@venue/contract';
 // appointments to a temporary database and calls the service directly.
 const dir = mkdtempSync(path.join(tmpdir(), 'venue-list-legacy-'));
 process.env.DB_PATH = path.join(dir, 'test.db');
+// The API runs in UTC in production.
+process.env.TZ = 'UTC';
 
 // The database module reads `DB_PATH` when it loads, so these imports come after the line above.
 const { db } = await import('../src/db');

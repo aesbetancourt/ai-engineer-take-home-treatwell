@@ -137,15 +137,17 @@ describe('GET /appointments: the sort', () => {
     expect(res.ids).toEqual([5, 11, 2, 13, 8, 3, 9, 1, 10, 7, 12, 6, 4, 14]);
   });
 
-  it('sorts by price, highest first, with the lower id first for an equal price', async () => {
+  it('sorts by price, highest first, as the exact reverse of the ascending order', async () => {
     const res = await list('?sortBy=price&sortDir=desc');
     expect(res.status).toBe(200);
-    expect(res.ids).toEqual([4, 14, 6, 7, 12, 10, 1, 3, 9, 8, 2, 13, 5, 11]);
+    expect(res.ids).toEqual([14, 4, 6, 12, 7, 10, 1, 9, 3, 8, 13, 2, 11, 5]);
   });
 
   it('keeps the same order from one page to the next', async () => {
     const first = await list('?sortBy=price&pageSize=7&page=1');
     const second = await list('?sortBy=price&pageSize=7&page=2');
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
     expect([...first.ids, ...second.ids]).toEqual([5, 11, 2, 13, 8, 3, 9, 1, 10, 7, 12, 6, 4, 14]);
   });
 });
@@ -197,7 +199,11 @@ describe('GET /appointments: a date in venue time', () => {
     expect(late.status).toBe(201);
     expect(early.status).toBe(201);
 
-    expect((await list('?from=2026-11-04&to=2026-11-04')).ids).toEqual([late.body.id]);
-    expect((await list('?from=2026-11-05&to=2026-11-05')).ids).toEqual([early.body.id]);
+    const dayOfLate = await list('?from=2026-11-04&to=2026-11-04');
+    const dayOfEarly = await list('?from=2026-11-05&to=2026-11-05');
+    expect(dayOfLate.status).toBe(200);
+    expect(dayOfLate.ids).toEqual([late.body.id]);
+    expect(dayOfEarly.status).toBe(200);
+    expect(dayOfEarly.ids).toEqual([early.body.id]);
   });
 });

@@ -60,7 +60,7 @@ export type AppointmentSummary = z.infer<typeof appointmentSummarySchema>;
 const startsAtSchema = z.iso.datetime({ offset: true, error: 'startsAt must be ISO 8601 with Z or an offset' });
 
 // A query string holds text, so a number arrives as digits. `1e1`, `1.5` and an empty value are not valid.
-const positiveIntegerParam = z
+const positiveIntegerParamSchema = z
   .string()
   .regex(/^\d+$/)
   .transform(Number)
@@ -77,8 +77,8 @@ export const MAX_PAGE_SIZE = 100;
 
 // Strict: a parameter that this schema does not name, the old `date` included, is not valid.
 export const listAppointmentsQuerySchema = z.strictObject({
-  page: positiveIntegerParam.default(1),
-  pageSize: positiveIntegerParam.pipe(z.number().max(MAX_PAGE_SIZE)).default(DEFAULT_PAGE_SIZE),
+  page: positiveIntegerParamSchema.default(1),
+  pageSize: positiveIntegerParamSchema.pipe(z.number().max(MAX_PAGE_SIZE)).default(DEFAULT_PAGE_SIZE),
   status: appointmentStatusSchema.optional(),
   // `YYYY-MM-DD`, a date in venue time. Both dates are inclusive.
   from: z.iso.date().optional(),
