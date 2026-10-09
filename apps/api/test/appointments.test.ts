@@ -38,4 +38,35 @@ describe('POST /appointments: overlap', () => {
       endsAt: '2026-10-05T10:00:00.000Z',
     });
   });
+
+  it('accepts an appointment that overlaps only a cancelled one', async () => {
+    // Customer 6 has a cancelled root colour from 09:00 to 10:30 on 2026-10-06.
+    const res = await api.post('/appointments', {
+      customerId: 6,
+      treatmentId: 2,
+      startsAt: '2026-10-06T09:30:00.000Z',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      status: 'pending',
+      startsAt: '2026-10-06T09:30:00.000Z',
+      endsAt: '2026-10-06T10:00:00.000Z',
+    });
+  });
+
+  it('accepts an appointment that overlaps only a legacy appointment with the status canceled', async () => {
+    // Customer 5 has a legacy facial at '2026-10-09 16:00' with the status 'canceled'. A 90 minute root colour
+    // from 14:45 UTC overlaps it, whether the legacy time is read as UTC or as venue time.
+    const res = await api.post('/appointments', {
+      customerId: 5,
+      treatmentId: 3,
+      startsAt: '2026-10-09T14:45:00.000Z',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      status: 'pending',
+      startsAt: '2026-10-09T14:45:00.000Z',
+      endsAt: '2026-10-09T16:15:00.000Z',
+    });
+  });
 });

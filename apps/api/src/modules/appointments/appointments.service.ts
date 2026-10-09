@@ -1,4 +1,5 @@
 import {
+  LEGACY_CANCELLED_STATUS,
   appointmentStatusSchema,
   type Appointment,
   type AppointmentSummary,
@@ -12,6 +13,7 @@ import * as repository from './appointments.repository';
 
 const statuses = appointmentStatusSchema.enum;
 const REVENUE_STATUSES: string[] = [statuses.confirmed, statuses.completed];
+const CANCELLED_STATUSES: string[] = [statuses.cancelled, LEGACY_CANCELLED_STATUS];
 
 /** Lists appointments by start time, with an optional status and an optional date prefix. */
 export function listAppointments(query: ListAppointmentsQuery): Appointment[] {
@@ -55,6 +57,10 @@ export function createAppointment(body: CreateAppointmentBody): Appointment {
   const start = new Date(body.startsAt).getTime();
   const end = start + treatment.durationMin * MINUTE;
   const hasOverlap = repository.listAppointmentRowsOfCustomer(customer.id).some((existing) => {
+    // A cancelled appointment does not count.
+    if (CANCELLED_STATUSES.includes(existing.appointment.status)) {
+      return false;
+    }
     const existingStart = new Date(existing.appointment.startsAt).getTime();
     const existingEnd = existingStart + existing.treatment.durationMin * MINUTE;
     // Back-to-back is fine: an appointment can start at the instant another one ends.
