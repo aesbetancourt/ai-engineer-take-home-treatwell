@@ -37,7 +37,7 @@ export function listAppointmentRows(filter: ListAppointmentsQuery): AppointmentR
   }
   return selectAppointmentRows()
     .where(and(...conditions))
-    .orderBy(appointments.startsAt)
+    .orderBy(appointments.startsAtUtc, appointments.id)
     .all();
 }
 

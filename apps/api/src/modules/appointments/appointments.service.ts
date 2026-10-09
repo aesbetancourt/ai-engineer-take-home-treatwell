@@ -7,7 +7,7 @@ import {
   type UpdateAppointmentBody,
 } from '@venue/contract';
 import { ConflictError, NotFoundError } from '../../shared/errors';
-import { MINUTE, toAppointment, toStatus } from './appointments.mapper';
+import { MINUTE, toAppointment, toStatus, toUtcStart } from './appointments.mapper';
 import * as repository from './appointments.repository';
 
 const statuses = appointmentStatusSchema.enum;
@@ -56,7 +56,7 @@ function assertNoOverlap({ customerId, startsAt, durationMin, ignoreAppointmentI
     if (existing.appointment.id === ignoreAppointmentId || isCancelled(existing.appointment.status)) {
       return false;
     }
-    const existingStart = new Date(existing.appointment.startsAt).getTime();
+    const existingStart = new Date(toUtcStart(existing.appointment)).getTime();
     const existingEnd = existingStart + existing.treatment.durationMin * MINUTE;
     // Back-to-back is fine: an appointment can start at the instant another one ends.
     return start < existingEnd && end > existingStart;

@@ -87,3 +87,36 @@ describe('the legacy status canceled', () => {
     expect(res.body.byStatus).not.toHaveProperty('canceled');
   });
 });
+
+// Appointment 5 is a legacy appointment of customer 5: 20 minutes from '2026-10-06 15:00' in venue time,
+// which is 13:00 to 13:20 UTC.
+describe('a legacy start time in venue time', () => {
+  it('sorts by its UTC time in the list', async () => {
+    // On 2026-10-06 the seed has appointment 6 at 09:00 UTC, appointment 5 at 13:00 UTC and appointment 4 at 14:00 UTC.
+    const res = await api.get('/appointments?date=2026-10-06');
+    expect(res.status).toBe(200);
+    expect(res.body.map((a: any) => a.id)).toEqual([6, 5, 4]);
+  });
+
+  it('blocks a new appointment that overlaps its UTC time', async () => {
+    const res = await api.post('/appointments', {
+      customerId: 5,
+      treatmentId: 2,
+      startsAt: '2026-10-06T13:10:00.000Z',
+    });
+    expect(res.status).toBe(409);
+  });
+
+  it('does not block a new appointment at the same clock time in UTC', async () => {
+    const res = await api.post('/appointments', {
+      customerId: 5,
+      treatmentId: 2,
+      startsAt: '2026-10-06T15:00:00.000Z',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      startsAt: '2026-10-06T15:00:00.000Z',
+      endsAt: '2026-10-06T15:30:00.000Z',
+    });
+  });
+});

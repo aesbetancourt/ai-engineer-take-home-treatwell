@@ -24,9 +24,9 @@ const appointmentTreatmentSchema = z.object({
 
 export const appointmentSchema = z.object({
   id: z.number().int(),
-  // UTC ISO 8601, or `YYYY-MM-DD HH:mm` in venue time for a legacy appointment.
-  startsAt: z.string(),
-  endsAt: z.string(),
+  // UTC ISO 8601, also for a legacy appointment.
+  startsAt: z.iso.datetime(),
+  endsAt: z.iso.datetime(),
   status: appointmentStatusSchema,
   price: z.number(),
   notes: z.string().nullable(),
