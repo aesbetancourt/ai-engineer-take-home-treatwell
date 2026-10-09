@@ -114,13 +114,19 @@ function assertNoOverlap({ customerId, startsAt, durationMin, ignoreAppointmentI
   }
 }
 
-type AuditOptions = { appointmentId: number; action: AuditAction; before: AuditedValues | null; after: AuditedValues | null };
+type AuditOptions = {
+  appointmentId: number;
+  action: AuditAction;
+  before: AuditedValues | null;
+  after: AuditedValues | null;
+  at?: string;
+};
 
 /**
  * Writes the audit entry of a change, with each field whose value differs. A create has no `before`, and a delete
  * has no `after`. It writes nothing when no value differs. It runs inside the transaction of the change.
  */
-function recordAudit({ appointmentId, action, before, after }: AuditOptions): void {
+function recordAudit({ appointmentId, action, before, after, at = new Date().toISOString() }: AuditOptions): void {
   const changes: AuditChanges = {};
   for (const field of auditedFieldSchema.options) {
     const from = before ? before[field] : null;
@@ -130,7 +136,7 @@ function recordAudit({ appointmentId, action, before, after }: AuditOptions): vo
     }
   }
   if (Object.keys(changes).length > 0) {
-    repository.insertAuditRecord({ appointmentId, action, at: new Date().toISOString(), changes });
+    repository.insertAuditRecord({ appointmentId, action, at, changes });
   }
 }
 
@@ -230,13 +236,15 @@ export function deleteAppointment(id: number): void {
     if (!row) {
       throw new NotFoundError('Appointment not found');
     }
-    repository.markAppointmentDeleted(id, new Date().toISOString());
-    recordAudit({ appointmentId: id, action: auditActions.delete, before: toAuditedValues(row.appointment), after: null });
+    // The deletion time and the time of the audit entry are the same instant.
+    const at = new Date().toISOString();
+    repository.markAppointmentDeleted(id, at);
+    recordAudit({ appointmentId: id, action: auditActions.delete, before: toAuditedValues(row.appointment), after: null, at });
   });
 }
 
 /** Returns the audit trail of an appointment, oldest first. A deleted appointment keeps its trail. */
-export function getAppointmentAudit(id: number): AuditEntry[] {
+export function getAuditTrail(id: number): AuditEntry[] {
   if (!repository.hasAppointmentRecord(id)) {
     throw new NotFoundError('Appointment not found');
   }

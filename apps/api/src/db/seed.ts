@@ -5,7 +5,7 @@ const day = (n: number) => `2026-10-${String(n).padStart(2, '0')}`;
 const created = 1759300000000;
 
 export function seed() {
-  // The seed gives the appointments their ids again, so the audit trail of the old ones must go.
+  // The seed gives the appointments their ids again, so each audit trail from before the seed must go.
   db.delete(appointmentAudit).run();
   db.delete(appointments).run();
   db.delete(customers).run();

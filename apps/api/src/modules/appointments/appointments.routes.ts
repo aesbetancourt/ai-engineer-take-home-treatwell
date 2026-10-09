@@ -41,6 +41,6 @@ export function registerAppointmentsRoutes(app: FastifyInstance) {
   });
 
   app.get<IdParams>('/appointments/:id/audit', (req) => {
-    return service.getAppointmentAudit(toId(appointmentIdParamSchema, req.params.id));
+    return service.getAuditTrail(toId(appointmentIdParamSchema, req.params.id));
   });
 }

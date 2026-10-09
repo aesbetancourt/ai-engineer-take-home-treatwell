@@ -146,17 +146,9 @@ export function updateAppointment(id: number, changes: AppointmentChanges): void
   db.update(appointments).set(changes).where(and(eq(appointments.id, id), isNotDeleted)).run();
 }
 
-/**
- * Marks an appointment as deleted, in one atomic update. It returns `false` when no appointment has this id, or when
- * the appointment is deleted already.
- */
-export function markAppointmentDeleted(id: number, at: string): boolean {
-  const { changes } = db
-    .update(appointments)
-    .set({ deletedAt: at })
-    .where(and(eq(appointments.id, id), isNotDeleted))
-    .run();
-  return changes === 1;
+/** Marks an appointment as deleted. Call it inside a write transaction, after the read of the appointment. */
+export function markAppointmentDeleted(id: number, at: string): void {
+  db.update(appointments).set({ deletedAt: at }).where(and(eq(appointments.id, id), isNotDeleted)).run();
 }
 
 export function findCustomer(id: number) {
