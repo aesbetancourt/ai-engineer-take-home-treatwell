@@ -1,17 +1,30 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-// A migration has no endpoint. This test applies the real migrations to a temporary database, adds appointments as
-// a production database holds them, and then runs the SQL of the fix migration again, as a second run does.
+// A migration has no endpoint. This test brings a temporary database to the schema of the release before the fix,
+// adds appointments as a production database holds them, and then applies the real migrations, as `db:migrate` does.
+const FIX = '0006_fix_canceled_status';
 const migrationsFolder = path.resolve(import.meta.dirname, '../drizzle');
-const fixSql = readFileSync(path.join(migrationsFolder, '0006_fix_canceled_status.sql'), 'utf8');
+const fixSql = readFileSync(path.join(migrationsFolder, `${FIX}.sql`), 'utf8');
 const dir = mkdtempSync(path.join(tmpdir(), 'venue-canceled-'));
 const sqlite = new Database(path.join(dir, 'test.db'));
+const db = drizzle(sqlite);
+
+/** Copies the migrations folder, with a journal that ends before the fix migration. */
+function migrationsBeforeFix(): string {
+  const copy = path.join(dir, 'drizzle-before-fix');
+  cpSync(migrationsFolder, copy, { recursive: true });
+  const journalPath = path.join(copy, 'meta/_journal.json');
+  const journal = JSON.parse(readFileSync(journalPath, 'utf8'));
+  journal.entries = journal.entries.filter((entry: { tag: string }) => entry.tag < FIX);
+  writeFileSync(journalPath, JSON.stringify(journal));
+  return copy;
+}
 
 type StoredAppointment = { id: number; starts_at: string; status: string; price: number; notes: string | null };
 
@@ -20,7 +33,7 @@ function storedAppointments(): StoredAppointment[] {
 }
 
 beforeAll(() => {
-  migrate(drizzle(sqlite), { migrationsFolder });
+  migrate(db, { migrationsFolder: migrationsBeforeFix() });
   const insert = sqlite.prepare(
     `INSERT INTO appointments (id, customer_id, treatment_id, starts_at, status, price, notes, created_at)
      VALUES (?, 1, 1, ?, ?, 19.99, ?, 0)`,
@@ -44,8 +57,7 @@ describe('the migration that fixes the status canceled', () => {
   });
 
   it('changes the status canceled to cancelled, and no other value', () => {
-    // `migrate` ran the fix on the empty table, before the appointments above existed. This is the run on real data.
-    sqlite.exec(fixSql);
+    migrate(db, { migrationsFolder });
 
     expect(storedAppointments()).toEqual([
       // A legacy start time stays as it is stored.
@@ -58,10 +70,12 @@ describe('the migration that fixes the status canceled', () => {
     ]);
   });
 
-  it('changes no row in a second run', () => {
+  it('changes no row in a second run of the migrations, or of its SQL', () => {
     const before = storedAppointments();
     const changesBefore = sqlite.prepare('SELECT total_changes() AS n').get() as { n: number };
 
+    // The migrator skips a migration that is applied already. The SQL is also safe by itself.
+    migrate(db, { migrationsFolder });
     sqlite.exec(fixSql);
 
     const changesAfter = sqlite.prepare('SELECT total_changes() AS n').get() as { n: number };
