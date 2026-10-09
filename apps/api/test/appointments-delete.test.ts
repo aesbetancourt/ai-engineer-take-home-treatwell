@@ -98,3 +98,13 @@ describe('a deleted appointment', () => {
     expect(res.body.startsAt).toBe('2026-10-06T14:30:00.000Z');
   });
 });
+
+describe('DELETE /appointments/:id from a client that sends a JSON content type', () => {
+  it('answers 204 although the request has no body', async () => {
+    const res = await fetch(`${api.baseUrl}/appointments/1`, {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+    });
+    expect(res.status).toBe(204);
+  });
+});

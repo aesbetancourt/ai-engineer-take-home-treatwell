@@ -13,6 +13,11 @@ export async function buildApp() {
 
   app.addHook('onRequest', async (req, reply) => {
     console.log(req.method, req.url);
+    // A DELETE has no body. Some clients send a JSON content type with each request, and Fastify then rejects
+    // the empty body with 400 before the route runs.
+    if (req.method === 'DELETE') {
+      delete req.headers['content-type'];
+    }
     // The platform calls the health check without a key.
     if (req.routeOptions.url === HEALTH_PATH) {
       return;
