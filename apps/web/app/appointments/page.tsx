@@ -66,6 +66,7 @@ function AppointmentList() {
   const [formError, setFormError] = useState('');
   // The appointment whose row asks "Delete this appointment?". The delete needs a second click.
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(null);
+  const [listError, setListError] = useState('');
 
   useEffect(() => {
     // An answer to an older URL can arrive after the answer to a newer one. Only the newest one counts.
@@ -188,10 +189,14 @@ function AppointmentList() {
   }
 
   function deleteAppointment(id: number) {
-    fetch('/api/appointments/' + id, { method: 'DELETE' }).then(() => {
-      setConfirmingDeleteId(null);
-      load();
-    });
+    fetch('/api/appointments/' + id, { method: 'DELETE' })
+      .then((r) => {
+        // A 404 means that another staff member deleted it first, so the list is reloaded in each case.
+        setListError(r.ok || r.status === 404 ? '' : 'The appointment was not deleted');
+        setConfirmingDeleteId(null);
+        load();
+      })
+      .catch(() => setListError('The appointment was not deleted'));
   }
 
   return (
@@ -299,6 +304,12 @@ function AppointmentList() {
       {hasInvalidQuery && (
         <p className="form-error" role="alert">
           The address holds a filter that is not valid. <Link href={pathname}>Show all appointments</Link>
+        </p>
+      )}
+
+      {listError && (
+        <p className="form-error" role="alert">
+          {listError}
         </p>
       )}
 
