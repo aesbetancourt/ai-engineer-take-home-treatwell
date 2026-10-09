@@ -1,3 +1,4 @@
+import type { AuditAction, AuditChanges } from '@venue/contract';
 import { sql, type SQL } from 'drizzle-orm';
 import { index, sqliteTable, integer, text, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
@@ -44,6 +45,21 @@ export const appointments = sqliteTable(
     }),
   },
   (table) => [index('appointments_starts_at_utc_idx').on(table.startsAtUtc)],
+);
+
+// One row for each create, update and delete of an appointment. A row is written in the transaction of the change,
+// and it is never changed or deleted.
+export const appointmentAudit = sqliteTable(
+  'appointment_audit',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    appointmentId: integer('appointment_id').notNull(),
+    action: text('action').$type<AuditAction>().notNull(),
+    // UTC ISO 8601.
+    at: text('at').notNull(),
+    changes: text('changes', { mode: 'json' }).$type<AuditChanges>().notNull(),
+  },
+  (table) => [index('appointment_audit_appointment_id_idx').on(table.appointmentId)],
 );
 
 export const STAFF_EMAIL_UNIQUE_INDEX = 'staff_email_lower_unique';
