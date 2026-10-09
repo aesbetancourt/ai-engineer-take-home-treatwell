@@ -17,3 +17,9 @@
 - [ ] The appointments page reads the new shape and has page controls
 - [ ] The characterization tests this breaks change in their own commit, and `NOTES.md` says so
 - [ ] New tests cover each parameter, each 400 case and a legacy appointment at a Berlin date boundary
+
+## Comments
+
+**From ticket 05.** The filter `status=cancelled` already matches both stored spellings. `status=canceled` is still accepted and returns only the legacy appointments, shown as `cancelled`. The strict query schema in this ticket must reject it with 400.
+
+**From ticket 10.** The list BFF handler forwards the query string to the API and does not parse it. Parse it there with the new query schema. The old `date` filter matches the stored text, so it is the UTC date for a new appointment and the venue date for a legacy one; `from` and `to` in venue time replace it.
