@@ -1,5 +1,5 @@
 import { sql, type SQL } from 'drizzle-orm';
-import { index, sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core';
+import { index, sqliteTable, integer, text, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const customers = sqliteTable('customers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -42,4 +42,19 @@ export const appointments = sqliteTable(
     }),
   },
   (table) => [index('appointments_starts_at_utc_idx').on(table.startsAtUtc)],
+);
+
+export const STAFF_EMAIL_UNIQUE_INDEX = 'staff_email_lower_unique';
+
+export const staff = sqliteTable(
+  'staff',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    name: text('name').notNull(),
+    // Stored as sent. The index below makes it unique without regard to letter case.
+    email: text('email').notNull(),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [uniqueIndex(STAFF_EMAIL_UNIQUE_INDEX).on(sql`lower(${table.email})`)],
 );
