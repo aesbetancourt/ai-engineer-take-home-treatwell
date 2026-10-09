@@ -26,7 +26,7 @@ describe('GET /appointments', () => {
 });
 
 describe('GET /appointments/:id', () => {
-  it('returns a legacy appointment with its stored start time and status', async () => {
+  it('returns a legacy appointment with its stored start time and the status cancelled', async () => {
     // Appointment 11 is a 20 minute treatment, imported as '2026-10-08 09:30' with the status 'canceled'.
     const res = await api.get('/appointments/11');
     expect(res.status).toBe(200);
@@ -34,7 +34,7 @@ describe('GET /appointments/:id', () => {
       id: 11,
       startsAt: '2026-10-08 09:30',
       endsAt: '2026-10-08T09:50:00.000Z',
-      status: 'canceled',
+      status: 'cancelled',
     });
   });
 
