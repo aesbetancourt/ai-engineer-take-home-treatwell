@@ -44,10 +44,8 @@ export const appointmentSummarySchema = z.object({
 });
 export type AppointmentSummary = z.infer<typeof appointmentSummarySchema>;
 
-// Records the current behaviour: any string that `Date` can parse is valid.
-const startsAtSchema = z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), {
-  message: 'startsAt is not a valid date',
-});
+// A time with no zone has no defined instant, so the input must end in `Z` or an offset.
+const startsAtSchema = z.iso.datetime({ offset: true, error: 'startsAt must be ISO 8601 with Z or an offset' });
 
 // Records the current behaviour: an unknown status matches no appointment, and `date` is a prefix of `startsAt`.
 export const listAppointmentsQuerySchema = z.object({

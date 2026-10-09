@@ -42,6 +42,11 @@ export function getAppointment(id: number): Appointment {
   return toAppointment(row);
 }
 
+/** Writes an ISO 8601 time with an offset as the same instant in UTC. */
+function toUtcIso(startsAt: string): string {
+  return new Date(startsAt).toISOString();
+}
+
 type OverlapCheck = { customerId: number; startsAt: string; durationMin: number; ignoreAppointmentId?: number };
 
 function isCancelled(status: string): boolean {
@@ -82,7 +87,7 @@ export function createAppointment(body: CreateAppointmentBody): Appointment {
   const appointment = repository.insertAppointment({
     customerId: customer.id,
     treatmentId: treatment.id,
-    startsAt: body.startsAt,
+    startsAt: toUtcIso(body.startsAt),
     status: statuses.pending,
     price: treatment.price,
     notes: body.notes || null,
@@ -102,7 +107,13 @@ export function updateAppointment(id: number, body: UpdateAppointmentBody): Appo
     throw new ConflictError('A cancelled appointment cannot get another status');
   }
   // A cancelled appointment keeps its stored status, so cancelled on cancelled changes nothing.
-  const changes = isAlreadyCancelled ? { ...body, status: undefined } : body;
+  const changes = { ...body };
+  if (isAlreadyCancelled) {
+    changes.status = undefined;
+  }
+  if (changes.startsAt !== undefined) {
+    changes.startsAt = toUtcIso(changes.startsAt);
+  }
   const status = body.status ?? row.appointment.status;
   if (body.startsAt !== undefined && !isCancelled(status)) {
     assertNoOverlap({

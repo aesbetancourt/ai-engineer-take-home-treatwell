@@ -140,3 +140,56 @@ describe('PATCH /appointments/:id: status', () => {
     expect(cancelled.body).toMatchObject({ id: 13, status: 'cancelled' });
   });
 });
+
+describe('the startsAt input', () => {
+  it('accepts a time with an offset and returns it in UTC', async () => {
+    const res = await api.post('/appointments', {
+      customerId: 7,
+      treatmentId: 2,
+      startsAt: '2026-11-03T11:00:00+02:00',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      startsAt: '2026-11-03T09:00:00.000Z',
+      endsAt: '2026-11-03T09:30:00.000Z',
+    });
+  });
+
+  it('stores a time with an offset in UTC', async () => {
+    // 00:30 at +02:00 on 5 November is 22:30 UTC on 4 November. The date filter reads the stored value.
+    const created = await api.post('/appointments', {
+      customerId: 7,
+      treatmentId: 2,
+      startsAt: '2026-11-05T00:30:00+02:00',
+    });
+    expect(created.status).toBe(201);
+
+    const res = await api.get('/appointments?date=2026-11-04');
+    expect(res.status).toBe(200);
+    expect(res.body.map((a: any) => a.id)).toEqual([created.body.id]);
+  });
+
+  it.each([
+    ['a date with no time', '2026-11-06'],
+    ['a time with no zone', '2026-11-06T09:00:00'],
+    ['the legacy format', '2026-11-06 09:00'],
+  ])('rejects %s on create with 400', async (_label, startsAt) => {
+    const res = await api.post('/appointments', { customerId: 8, treatmentId: 2, startsAt });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a time with no zone on update with 400', async () => {
+    const res = await api.patch('/appointments/2', { startsAt: '2026-11-07T09:00:00' });
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts a time with an offset on update and returns it in UTC', async () => {
+    const res = await api.patch('/appointments/2', { startsAt: '2026-11-07T11:00:00+02:00' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: 2,
+      startsAt: '2026-11-07T09:00:00.000Z',
+      endsAt: '2026-11-07T09:30:00.000Z',
+    });
+  });
+});
