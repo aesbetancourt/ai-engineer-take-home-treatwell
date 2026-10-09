@@ -69,8 +69,17 @@ export function listConfirmedAppointmentRowsWithoutReminder(): AppointmentRow[] 
     .all();
 }
 
-export function markReminderSent(id: number, at: number): void {
-  db.update(appointments).set({ reminderSentAt: at }).where(eq(appointments.id, id)).run();
+/**
+ * Marks the reminder of a confirmed appointment as sent, in one atomic update. It returns `true` for the one caller
+ * that changed the row, so only that replica sends the email.
+ */
+export function claimReminder(id: number, at: number): boolean {
+  const { changes } = db
+    .update(appointments)
+    .set({ reminderSentAt: at })
+    .where(and(eq(appointments.id, id), eq(appointments.status, CONFIRMED), isNull(appointments.reminderSentAt)))
+    .run();
+  return changes === 1;
 }
 
 export function insertAppointment(values: NewAppointmentRecord): AppointmentRecord {

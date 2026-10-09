@@ -11,13 +11,14 @@ export async function sendDueReminders(send: SendEmail = sendEmail, now: number 
   for (const { appointment, customer, treatment } of repository.listConfirmedAppointmentRowsWithoutReminder()) {
     const startsIn = new Date(appointment.startsAt).getTime() - now;
     if (startsIn < 0 || startsIn > DAY) continue;
+    // Each replica runs this job. The claim comes before the email, so only one replica sends it (ADR 0001).
+    if (!repository.claimReminder(appointment.id, now)) continue;
 
     await send(
       customer.email,
       'See you tomorrow',
       'Hi ' + customer.name + ', this is a reminder of your ' + treatment.name + ' on ' + new Date(appointment.startsAt).toLocaleString()
     );
-    repository.markReminderSent(appointment.id, Date.now());
   }
 }
 
