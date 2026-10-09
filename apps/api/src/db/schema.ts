@@ -37,6 +37,8 @@ export const appointments = sqliteTable(
     notes: text('notes'),
     createdAt: integer('created_at').notNull(),
     reminderSentAt: integer('reminder_sent_at'),
+    // UTC ISO 8601. A value marks a deleted appointment: each read and each rule leaves it out.
+    deletedAt: text('deleted_at'),
     startsAtUtc: text('starts_at_utc').generatedAlwaysAs((): SQL => startsAtUtcExpression(sql`${appointments.startsAt}`), {
       mode: 'virtual',
     }),
