@@ -7,6 +7,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 // The reminder job has no endpoint, so this test calls it directly, on a temporary database and with a fake mailer.
 const dir = mkdtempSync(path.join(tmpdir(), 'venue-reminders-'));
 process.env.DB_PATH = path.join(dir, 'test.db');
+// The API runs in UTC in production. Without this line, the result depends on the time zone of the machine.
+process.env.TZ = 'UTC';
 
 // The database module reads `DB_PATH` when it loads, so these imports come after the line above.
 const { db } = await import('../src/db');
@@ -86,5 +88,25 @@ describe('the reminder job', () => {
     await sendDueReminders(mailer.send, NOW + 60 * 1000);
 
     expect(mailer.sent).toHaveLength(1);
+  });
+
+  it('reads the start time of a legacy appointment as venue time', async () => {
+    // 10:00 in the venue on 6 October is 08:00 UTC, which is 24 hours after `NOW`: the last instant of the window.
+    addAppointment('2026-10-06 10:00');
+    const mailer = fakeMailer();
+
+    await sendDueReminders(mailer.send, NOW);
+
+    expect(mailer.sent).toHaveLength(1);
+  });
+
+  it('sends no reminder for a legacy appointment that started one minute ago', async () => {
+    // 09:59 in the venue on 5 October is 07:59 UTC, and `NOW` is 08:00 UTC.
+    addAppointment('2026-10-05 09:59');
+    const mailer = fakeMailer();
+
+    await sendDueReminders(mailer.send, NOW);
+
+    expect(mailer.sent).toHaveLength(0);
   });
 });
