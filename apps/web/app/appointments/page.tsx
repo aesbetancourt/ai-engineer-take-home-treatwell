@@ -10,6 +10,7 @@ import {
   errorBodySchema,
   errorCodes,
   formatVenueTime,
+  listAppointmentsQuerySchema,
   sortDirectionSchema,
   venueTimeToUtc,
   type Appointment,
@@ -24,6 +25,7 @@ type Treatment = Appointment['treatment'];
 let customerCache: Customer[] | null = null;
 
 const PAGE_SIZES = [10, DEFAULT_PAGE_SIZE, 50, 100];
+const LIST_PARAMS = Object.keys(listAppointmentsQuerySchema.shape);
 const STATUS_LABELS = { pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
 const SORT_LABELS = { startsAt: 'Start time', createdAt: 'Creation time', price: 'Price' };
 const DIRECTION_LABELS = { asc: 'Ascending', desc: 'Descending' };
@@ -52,6 +54,8 @@ function AppointmentList() {
 
   const [list, setList] = useState<ListAppointmentsResponse | null>(null);
   const [hasInvalidQuery, setHasInvalidQuery] = useState(false);
+  // A change of this number loads the list again, with the URL of that moment.
+  const [reloadCount, setReloadCount] = useState(0);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -61,26 +65,43 @@ function AppointmentList() {
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
 
-  function load() {
+  useEffect(() => {
+    // An answer to an older URL can arrive after the answer to a newer one. Only the newest one counts.
+    let isNewest = true;
     fetch('/api/appointments?' + query).then(async (r) => {
+      const body = r.ok ? await r.json() : null;
+      if (!isNewest) return;
       // The BFF answers 400 when the URL holds a value that the contract does not accept.
       setHasInvalidQuery(r.status === 400);
-      if (r.ok) setList(await r.json());
+      if (body) setList(body);
     });
-  }
+    return () => {
+      isNewest = false;
+    };
+  }, [query, reloadCount]);
 
-  useEffect(() => {
-    load();
-  }, [query]);
+  function load() {
+    setReloadCount((count) => count + 1);
+  }
 
   function replaceQuery(next: URLSearchParams) {
     const nextQuery = next.toString();
     router.replace(nextQuery ? pathname + '?' + nextQuery : pathname);
   }
 
+  /** Copies the list parameters of the URL. A parameter that the list does not know is left out. */
+  function listParams(): URLSearchParams {
+    const params = new URLSearchParams();
+    for (const name of LIST_PARAMS) {
+      const value = searchParams.get(name);
+      if (value) params.set(name, value);
+    }
+    return params;
+  }
+
   // A new filter, sort or page size gives another list, so the page number starts again.
   function changeControl(name: string, value: string) {
-    const next = new URLSearchParams(searchParams);
+    const next = listParams();
     if (value) {
       next.set(name, value);
     } else {
@@ -91,11 +112,13 @@ function AppointmentList() {
   }
 
   function goToPage(page: number) {
-    const next = new URLSearchParams(searchParams);
+    const next = listParams();
     next.set('page', String(page));
     replaceQuery(next);
   }
 
+  // The URL can hold a page size that is not one of the choices.
+  const pageSizes = PAGE_SIZES.includes(Number(pageSize)) ? PAGE_SIZES : [...PAGE_SIZES, pageSize];
   const appointments = list?.items ?? [];
   const lastPage = list ? Math.max(1, Math.ceil(list.total / list.pageSize)) : 1;
 
@@ -209,7 +232,7 @@ function AppointmentList() {
         <label>
           Per page
           <select value={pageSize} onChange={(e) => changeControl('pageSize', e.target.value)}>
-            {PAGE_SIZES.map((size) => (
+            {pageSizes.map((size) => (
               <option key={size} value={size}>
                 {size}
               </option>
@@ -321,7 +344,7 @@ function AppointmentList() {
 
       {list && (
         <div className="pagination">
-          <button className="small secondary" disabled={list.page <= 1} onClick={() => goToPage(list.page - 1)}>
+          <button className="small secondary" disabled={list.page <= 1} onClick={() => goToPage(Math.min(list.page - 1, lastPage))}>
             Previous
           </button>
           <span>
