@@ -14,8 +14,9 @@ describe('GET /appointments', () => {
   it('returns every appointment with its customer and treatment', async () => {
     const res = await api.get('/appointments');
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(14);
-    for (const a of res.body) {
+    expect(res.body.items).toHaveLength(14);
+    expect(res.body).toMatchObject({ page: 1, pageSize: 20, total: 14 });
+    for (const a of res.body.items) {
       expect(a.customer.id).toBeTypeOf('number');
       expect(a.treatment.id).toBeTypeOf('number');
     }
@@ -23,13 +24,13 @@ describe('GET /appointments', () => {
 
   it('orders ISO-timestamped appointments by start time', async () => {
     const res = await api.get('/appointments');
-    const iso = res.body.map((a: any) => a.startsAt).filter((s: string) => s.endsWith('Z'));
+    const iso = res.body.items.map((a: any) => a.startsAt).filter((s: string) => s.endsWith('Z'));
     expect(iso).toEqual([...iso].sort());
   });
 
   it('computes endsAt from the treatment duration', async () => {
-    const res = await api.get('/appointments?date=2026-10-05');
-    const first = res.body.find((a: any) => a.id === 1);
+    const res = await api.get('/appointments?from=2026-10-05&to=2026-10-05');
+    const first = res.body.items.find((a: any) => a.id === 1);
     expect(first.startsAt).toBe('2026-10-05T09:00:00.000Z');
     expect(first.endsAt).toBe('2026-10-05T10:00:00.000Z');
   });
@@ -37,18 +38,19 @@ describe('GET /appointments', () => {
   it('filters by status', async () => {
     const res = await api.get('/appointments?status=confirmed');
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(6);
-    expect(res.body.every((a: any) => a.status === 'confirmed')).toBe(true);
+    expect(res.body.items).toHaveLength(6);
+    expect(res.body.total).toBe(6);
+    expect(res.body.items.every((a: any) => a.status === 'confirmed')).toBe(true);
   });
 
   it('filters by date', async () => {
-    const res = await api.get('/appointments?date=2026-10-05');
-    expect(res.body.map((a: any) => a.id).sort((a: number, b: number) => a - b)).toEqual([1, 2, 3]);
+    const res = await api.get('/appointments?from=2026-10-05&to=2026-10-05');
+    expect(res.body.items.map((a: any) => a.id).sort((a: number, b: number) => a - b)).toEqual([1, 2, 3]);
   });
 
   it('combines the status and date filters', async () => {
-    const res = await api.get('/appointments?date=2026-10-05&status=pending');
-    expect(res.body.map((a: any) => a.id)).toEqual([3]);
+    const res = await api.get('/appointments?from=2026-10-05&to=2026-10-05&status=pending');
+    expect(res.body.items.map((a: any) => a.id)).toEqual([3]);
   });
 });
 
