@@ -92,12 +92,18 @@ export function createAppointment(body: CreateAppointmentBody): Appointment {
   return toAppointment({ appointment, customer, treatment });
 }
 
-/** Changes the status, the notes or the start time of an appointment. A new start time cannot double-book the customer. */
+/** Changes the status, the notes or the start time. Cancelling is final, and a new start time cannot double-book. */
 export function updateAppointment(id: number, body: UpdateAppointmentBody): Appointment {
   const row = repository.findAppointmentRow(id);
   if (!row) {
     throw new NotFoundError('Appointment not found');
   }
+  const isAlreadyCancelled = isCancelled(row.appointment.status);
+  if (isAlreadyCancelled && body.status !== undefined && body.status !== statuses.cancelled) {
+    throw new ConflictError('A cancelled appointment cannot get another status');
+  }
+  // A cancelled appointment keeps its stored status, so cancelled on cancelled changes nothing.
+  const changes = isAlreadyCancelled ? { ...body, status: undefined } : body;
   const status = body.status ?? row.appointment.status;
   if (body.startsAt !== undefined && !isCancelled(status)) {
     assertNoOverlap({
@@ -107,6 +113,8 @@ export function updateAppointment(id: number, body: UpdateAppointmentBody): Appo
       ignoreAppointmentId: id,
     });
   }
-  repository.updateAppointment(id, body);
+  if (Object.values(changes).some((value) => value !== undefined)) {
+    repository.updateAppointment(id, changes);
+  }
   return getAppointment(id);
 }

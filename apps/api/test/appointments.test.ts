@@ -95,3 +95,48 @@ describe('PATCH /appointments/:id: overlap', () => {
     expect(res.body).toMatchObject({ status: 'cancelled', startsAt: '2026-10-09T12:15:00.000Z' });
   });
 });
+
+describe('PATCH /appointments/:id: status', () => {
+  it('rejects a new status for a cancelled appointment', async () => {
+    // Appointment 6 is cancelled, and the test above moved it onto the massage of customer 6.
+    // To confirm it would double-book the customer.
+    const res = await api.patch('/appointments/6', { status: 'confirmed' });
+    expect(res.status).toBe(409);
+
+    const fetched = await api.get('/appointments/6');
+    expect(fetched.body.status).toBe('cancelled');
+  });
+
+  it('rejects a new status for a legacy appointment with the status canceled', async () => {
+    const res = await api.patch('/appointments/12', { status: 'pending' });
+    expect(res.status).toBe(409);
+  });
+
+  it('accepts cancelled for an appointment that is cancelled already', async () => {
+    const res = await api.patch('/appointments/6', { status: 'cancelled' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: 6, status: 'cancelled' });
+
+    // Appointment 11 is a legacy appointment with the status 'canceled'.
+    const legacy = await api.patch('/appointments/11', { status: 'cancelled' });
+    expect(legacy.status).toBe(200);
+    expect(legacy.body.id).toBe(11);
+  });
+
+  it('accepts new notes for a cancelled appointment', async () => {
+    const res = await api.patch('/appointments/6', { notes: 'Called to apologise' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: 6, status: 'cancelled', notes: 'Called to apologise' });
+  });
+
+  it('accepts every other status change', async () => {
+    // Appointment 13 is completed. Only cancelled is final.
+    const reopened = await api.patch('/appointments/13', { status: 'pending' });
+    expect(reopened.status).toBe(200);
+    expect(reopened.body).toMatchObject({ id: 13, status: 'pending' });
+
+    const cancelled = await api.patch('/appointments/13', { status: 'cancelled' });
+    expect(cancelled.status).toBe(200);
+    expect(cancelled.body).toMatchObject({ id: 13, status: 'cancelled' });
+  });
+});
