@@ -19,3 +19,15 @@ export const createStaffBodySchema = z.object({
   email: staffEmailSchema,
 });
 export type CreateStaffBody = z.infer<typeof createStaffBodySchema>;
+
+export const updateStaffBodySchema = z
+  .object({
+    name: staffNameSchema.optional(),
+    email: staffEmailSchema.optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((body) => Object.values(body).some((value) => value !== undefined), { message: 'Nothing to update' });
+export type UpdateStaffBody = z.infer<typeof updateStaffBodySchema>;
+
+/** The staff member id in a URL path: digits only. */
+export const staffIdParamSchema = z.string().regex(/^\d+$/);
