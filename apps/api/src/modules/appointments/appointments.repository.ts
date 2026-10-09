@@ -57,8 +57,11 @@ const SORT_COLUMNS = {
   price: appointments.price,
 };
 
+// Each read and each rule leaves out a deleted appointment.
+const isNotDeleted = isNull(appointments.deletedAt);
+
 function toCondition(filter: AppointmentFilter): SQL | undefined {
-  const conditions: SQL[] = [];
+  const conditions: SQL[] = [isNotDeleted];
   if (filter.status === CANCELLED) {
     // Legacy appointments store the status `canceled`.
     conditions.push(inArray(appointments.status, [CANCELLED, LEGACY_CANCELLED_STATUS]));
@@ -101,20 +104,20 @@ export function countAppointmentRows(filter: AppointmentFilter): number {
 }
 
 export function findAppointmentRow(id: number): AppointmentRow | undefined {
-  return selectAppointmentRows().where(eq(appointments.id, id)).get();
+  return selectAppointmentRows().where(and(eq(appointments.id, id), isNotDeleted)).get();
 }
 
 export function listAppointmentRowsOfCustomer(customerId: number): AppointmentRow[] {
-  return selectAppointmentRows().where(eq(appointments.customerId, customerId)).all();
+  return selectAppointmentRows().where(and(eq(appointments.customerId, customerId), isNotDeleted)).all();
 }
 
 export function listAppointmentStatusesAndPrices(): Pick<AppointmentRecord, 'status' | 'price'>[] {
-  return db.select({ status: appointments.status, price: appointments.price }).from(appointments).all();
+  return db.select({ status: appointments.status, price: appointments.price }).from(appointments).where(isNotDeleted).all();
 }
 
 export function listConfirmedAppointmentRowsWithoutReminder(): AppointmentRow[] {
   return selectAppointmentRows()
-    .where(and(eq(appointments.status, CONFIRMED), isNull(appointments.reminderSentAt)))
+    .where(and(eq(appointments.status, CONFIRMED), isNull(appointments.reminderSentAt), isNotDeleted))
     .all();
 }
 
@@ -126,7 +129,9 @@ export function claimReminder(id: number, at: number): boolean {
   const { changes } = db
     .update(appointments)
     .set({ reminderSentAt: at })
-    .where(and(eq(appointments.id, id), eq(appointments.status, CONFIRMED), isNull(appointments.reminderSentAt)))
+    .where(
+      and(eq(appointments.id, id), eq(appointments.status, CONFIRMED), isNull(appointments.reminderSentAt), isNotDeleted),
+    )
     .run();
   return changes === 1;
 }
@@ -136,7 +141,20 @@ export function insertAppointment(values: NewAppointmentRecord): AppointmentReco
 }
 
 export function updateAppointment(id: number, changes: AppointmentChanges): void {
-  db.update(appointments).set(changes).where(eq(appointments.id, id)).run();
+  db.update(appointments).set(changes).where(and(eq(appointments.id, id), isNotDeleted)).run();
+}
+
+/**
+ * Marks an appointment as deleted, in one atomic update. It returns `false` when no appointment has this id, or when
+ * the appointment is deleted already.
+ */
+export function markAppointmentDeleted(id: number, at: string): boolean {
+  const { changes } = db
+    .update(appointments)
+    .set({ deletedAt: at })
+    .where(and(eq(appointments.id, id), isNotDeleted))
+    .run();
+  return changes === 1;
 }
 
 export function findCustomer(id: number) {

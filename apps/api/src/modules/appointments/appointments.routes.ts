@@ -33,4 +33,9 @@ export function registerAppointmentsRoutes(app: FastifyInstance) {
     service.getAppointment(id);
     return service.updateAppointment(id, parseInput(updateAppointmentBodySchema, req.body));
   });
+
+  app.delete<IdParams>('/appointments/:id', (req, reply) => {
+    service.deleteAppointment(Number(req.params.id));
+    return reply.code(204).send();
+  });
 }

@@ -121,4 +121,23 @@ describe('the reminder job', () => {
     expect(mailer.sent[0].body).toContain('5 October 2026');
     expect(mailer.sent[0].body).toContain('22:00');
   });
+
+  it('sends no reminder for a deleted appointment', async () => {
+    db.insert(appointments)
+      .values({
+        customerId: 1,
+        treatmentId: 1,
+        startsAt: new Date(NOW + 12 * HOUR).toISOString(),
+        status: 'confirmed',
+        price: 29,
+        createdAt: NOW,
+        deletedAt: new Date(NOW).toISOString(),
+      })
+      .run();
+    const mailer = fakeMailer();
+
+    await sendDueReminders(mailer.send, NOW);
+
+    expect(mailer.sent).toHaveLength(0);
+  });
 });
