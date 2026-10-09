@@ -2,24 +2,18 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import type { Appointment, AppointmentStatus } from '@venue/contract';
 
-type Appointment = {
-  id: number;
-  startsAt: string;
-  endsAt: string;
-  status: string;
-  price: number;
-  notes: string | null;
-  customer: { id: number; name: string; email: string };
-  treatment: { id: number; name: string; durationMin: number };
-};
+// The customer and treatment lists have no schema of their own yet. They return the shapes that an appointment embeds.
+type Customer = Appointment['customer'];
+type Treatment = Appointment['treatment'];
 
-let customerCache: any[] | null = null;
+let customerCache: Customer[] | null = null;
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [treatments, setTreatments] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [status, setStatus] = useState('');
   const [date, setDate] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -77,7 +71,7 @@ export default function AppointmentsPage() {
     });
   }
 
-  function setAppointmentStatus(id: number, newStatus: string) {
+  function setAppointmentStatus(id: number, newStatus: AppointmentStatus) {
     fetch('/api/appointments/' + id, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },

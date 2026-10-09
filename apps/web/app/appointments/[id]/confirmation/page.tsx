@@ -2,17 +2,9 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import type { Appointment } from '@venue/contract';
 
 // Shareable page: the customer opens it from the confirmation email.
-type Appointment = {
-  id: number;
-  startsAt: string;
-  status: string;
-  price: number;
-  customer: { name: string };
-  treatment: { name: string; durationMin: number };
-};
-
 export default function ConfirmationPage() {
   const params = useParams<{ id: string }>();
   const [appointment, setAppointment] = useState<Appointment | null>(null);
