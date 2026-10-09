@@ -32,8 +32,10 @@ export async function sendDueReminders(send: SendEmail = sendEmail, now: number 
   }
 }
 
-export function startReminderJob() {
-  setInterval(() => {
+/** Starts the job. Returns the function that stops it. */
+export function startReminderJob(): () => void {
+  const timer = setInterval(() => {
     sendDueReminders().catch((e) => console.log('reminders failed', e));
   }, EVERY_MINUTE);
+  return () => clearInterval(timer);
 }

@@ -10,7 +10,17 @@ async function main() {
   const port = Number(process.env.PORT ?? 4000);
   await app.listen({ port, host: '0.0.0.0' });
   console.log('API listening on ' + port);
-  startReminderJob();
+  const stopReminderJob = startReminderJob();
+
+  // The platform sends SIGTERM before it stops a pod. Take no new request, and let each open request and a
+  // reminder that is in progress finish. The process then exits by itself, with code 0.
+  process.once('SIGTERM', () => {
+    stopReminderJob();
+    app.close().catch((e) => {
+      console.log('shutdown failed', e);
+      process.exit(1);
+    });
+  });
 }
 
 main();
