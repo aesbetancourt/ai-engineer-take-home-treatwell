@@ -9,6 +9,7 @@ import {
   venueTimeToUtc,
   type Appointment,
   type AppointmentStatus,
+  type ListAppointmentsResponse,
 } from '@venue/contract';
 
 // The customer and treatment lists have no schema of their own yet. They return the shapes that an appointment embeds.
@@ -18,11 +19,13 @@ type Treatment = Appointment['treatment'];
 let customerCache: Customer[] | null = null;
 
 export default function AppointmentsPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [list, setList] = useState<ListAppointmentsResponse | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [status, setStatus] = useState('');
-  const [date, setDate] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [customerId, setCustomerId] = useState('');
   const [treatmentId, setTreatmentId] = useState('');
@@ -31,17 +34,27 @@ export default function AppointmentsPage() {
   const [formError, setFormError] = useState('');
 
   function load() {
-    let url = '/api/appointments?';
-    if (status) url += 'status=' + status + '&';
-    if (date) url += 'date=' + date;
-    fetch(url).then(async (r) => {
-      if (r.ok) setAppointments(await r.json());
+    const params = new URLSearchParams({ page: String(page) });
+    if (status) params.set('status', status);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    fetch('/api/appointments?' + params.toString()).then(async (r) => {
+      if (r.ok) setList(await r.json());
     });
   }
 
   useEffect(() => {
     load();
-  }, [status, date]);
+  }, [status, from, to, page]);
+
+  // A new filter gives another list, so the page number starts again.
+  function changeFilter(setFilter: (value: string) => void, value: string) {
+    setFilter(value);
+    setPage(1);
+  }
+
+  const appointments = list?.items ?? [];
+  const lastPage = list ? Math.max(1, Math.ceil(list.total / list.pageSize)) : 1;
 
   useEffect(() => {
     if (customerCache) {
@@ -113,7 +126,7 @@ export default function AppointmentsPage() {
       <div className="filters">
         <label>
           Status
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select value={status} onChange={(e) => changeFilter(setStatus, e.target.value)}>
             <option value="">All</option>
             <option value="pending">Pending</option>
             <option value="confirmed">Confirmed</option>
@@ -122,8 +135,12 @@ export default function AppointmentsPage() {
           </select>
         </label>
         <label>
-          Date
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          From
+          <input type="date" value={from} onChange={(e) => changeFilter(setFrom, e.target.value)} />
+        </label>
+        <label>
+          To
+          <input type="date" value={to} onChange={(e) => changeFilter(setTo, e.target.value)} />
         </label>
         <button className="secondary" onClick={toggleForm}>
           {showForm ? 'Close form' : 'New appointment'}
@@ -221,6 +238,20 @@ export default function AppointmentsPage() {
           ))}
         </tbody>
       </table>
+
+      {list && (
+        <div className="pagination">
+          <button className="small secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {list.page} of {lastPage} ({list.total} appointments)
+          </span>
+          <button className="small secondary" disabled={page >= lastPage} onClick={() => setPage(page + 1)}>
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

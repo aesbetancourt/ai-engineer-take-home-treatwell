@@ -54,6 +54,8 @@ th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--li
 th { background: var(--plum-soft); font-weight: 600; }
 tr:last-child td { border-bottom: 0; }
 
+button:disabled { opacity: 0.5; cursor: default; }
+.pagination { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
 .form-error { color: var(--rose); margin: 0 0 12px; }
 .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; background: var(--plum-soft); }
 .badge.confirmed, .badge.completed { background: var(--sage-soft); color: var(--sage); }

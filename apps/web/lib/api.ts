@@ -66,3 +66,20 @@ export async function parseBody<T>(req: Request, schema: Schema<T>): Promise<{ d
   }
   return { data: result.data };
 }
+
+/** Parses the query string of a request with a contract schema. Returns the 400 response when it is not valid. */
+export function parseQuery<T>(req: Request, schema: Schema<T>): { data: T } | { response: NextResponse } {
+  const params = new URL(req.url).searchParams;
+  const query: Record<string, string | string[]> = {};
+  for (const key of new Set(params.keys())) {
+    // A parameter that is given twice becomes a list, which no schema accepts. The API does the same.
+    const values = params.getAll(key);
+    query[key] = values.length === 1 ? values[0] : values;
+  }
+  const result = schema.safeParse(query);
+  if (!result.success) {
+    const details = result.error.issues;
+    return { response: errorResponse({ status: 400, code: errorCodes.VALIDATION_ERROR, message: 'Invalid input', details }) };
+  }
+  return { data: result.data };
+}
