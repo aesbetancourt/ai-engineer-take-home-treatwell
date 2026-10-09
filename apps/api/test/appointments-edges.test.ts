@@ -26,14 +26,15 @@ describe('GET /appointments', () => {
 });
 
 describe('GET /appointments/:id', () => {
-  it('returns a legacy appointment with its stored start time and the status cancelled', async () => {
-    // Appointment 11 is a 20 minute treatment, imported as '2026-10-08 09:30' with the status 'canceled'.
+  it('returns a legacy appointment with its start time in UTC and the status cancelled', async () => {
+    // Appointment 11 is a 20 minute treatment, imported as '2026-10-08 09:30' in venue time (UTC+2 in October)
+    // with the status 'canceled'.
     const res = await api.get('/appointments/11');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       id: 11,
-      startsAt: '2026-10-08 09:30',
-      endsAt: '2026-10-08T09:50:00.000Z',
+      startsAt: '2026-10-08T07:30:00.000Z',
+      endsAt: '2026-10-08T07:50:00.000Z',
       status: 'cancelled',
     });
   });
