@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import type { Appointment, AppointmentStatus } from '@venue/contract';
+import { errorBodySchema, errorCodes, type Appointment, type AppointmentStatus } from '@venue/contract';
 
 // The customer and treatment lists have no schema of their own yet. They return the shapes that an appointment embeds.
 type Customer = Appointment['customer'];
@@ -21,6 +21,7 @@ export default function AppointmentsPage() {
   const [treatmentId, setTreatmentId] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [notes, setNotes] = useState('');
+  const [formError, setFormError] = useState('');
 
   function load() {
     let url = '/api/appointments?';
@@ -58,17 +59,36 @@ export default function AppointmentsPage() {
       body: JSON.stringify({
         customerId: Number(customerId),
         treatmentId: Number(treatmentId),
-        startsAt: new Date(startsAt).toISOString(),
+        // An empty start time goes to the API as it is, and the API rejects it.
+        startsAt: startsAt ? new Date(startsAt).toISOString() : '',
         notes,
       }),
-    }).then(() => {
+    }).then(async (r) => {
+      if (!r.ok) {
+        // The API rejected the appointment. Keep the form open, with the values, and show the reason.
+        const body = errorBodySchema.safeParse(await r.json());
+        if (!body.success) {
+          setFormError('The appointment was not created');
+        } else if (body.data.error.code === errorCodes.VALIDATION_ERROR) {
+          setFormError('Choose a customer, a treatment and a start time');
+        } else {
+          setFormError(body.data.error.message);
+        }
+        return;
+      }
+      setFormError('');
       setShowForm(false);
       setCustomerId('');
       setTreatmentId('');
       setStartsAt('');
       setNotes('');
       load();
-    });
+    }).catch(() => setFormError('The appointment was not created'));
+  }
+
+  function toggleForm() {
+    setFormError('');
+    setShowForm(!showForm);
   }
 
   function setAppointmentStatus(id: number, newStatus: AppointmentStatus) {
@@ -98,7 +118,7 @@ export default function AppointmentsPage() {
           Date
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
-        <button className="secondary" onClick={() => setShowForm(!showForm)}>
+        <button className="secondary" onClick={toggleForm}>
           {showForm ? 'Close form' : 'New appointment'}
         </button>
       </div>
@@ -137,6 +157,11 @@ export default function AppointmentsPage() {
               <input value={notes} onChange={(e) => setNotes(e.target.value)} />
             </label>
           </div>
+          {formError && (
+            <p className="form-error" role="alert">
+              {formError}
+            </p>
+          )}
           <button onClick={create}>Create appointment</button>
         </div>
       )}
