@@ -91,7 +91,7 @@ describe('GET /staff/:id', () => {
     });
   });
 
-  it.each(['9999', 'abc', '1.5'])('answers 404 for the unknown id %s', async (id) => {
+  it.each(['9999', 'abc', '1.5', '1e0', '0x1'])('answers 404 for the unknown id %s', async (id) => {
     const res = await api.get(`/staff/${id}`);
     expect(res.status).toBe(404);
   });
