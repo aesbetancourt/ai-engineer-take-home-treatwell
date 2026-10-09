@@ -24,8 +24,9 @@ async function waitUntilUp(baseUrl: string, child: ChildProcess) {
   while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error('API process exited before it was ready');
     try {
-      const res = await fetch(`${baseUrl}/treatments`);
-      if (res.ok) return;
+      // Each answer shows that the API listens, also a 401 from an API that requires a key.
+      await fetch(`${baseUrl}/treatments`);
+      return;
     } catch {
       // not listening yet
     }
@@ -38,9 +39,9 @@ async function waitUntilUp(baseUrl: string, child: ChildProcess) {
  * Starts several API processes that share one fresh, seeded SQLite file, as the replicas do in production.
  * It uses the package scripts `db:migrate`, `db:seed` and `start`, as the characterization helper does.
  */
-export async function startReplicas(count: number): Promise<Replicas> {
+export async function startReplicas(count: number, extraEnv: Record<string, string> = {}): Promise<Replicas> {
   const dir = mkdtempSync(path.join(tmpdir(), 'venue-replicas-'));
-  const env = { ...process.env, DB_PATH: path.join(dir, 'test.db'), NODE_ENV: 'test', TZ: 'UTC' };
+  const env = { ...process.env, DB_PATH: path.join(dir, 'test.db'), NODE_ENV: 'test', TZ: 'UTC', ...extraEnv };
 
   for (const script of ['db:migrate', 'db:seed']) {
     const run = spawnSync('yarn', ['run', script], { cwd: apiRoot, env, encoding: 'utf8' });

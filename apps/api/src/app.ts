@@ -4,16 +4,25 @@ import { registerAppointmentsRoutes } from './modules/appointments/appointments.
 import { registerRoutes } from './routes';
 import { registerErrorHandler } from './shared/error-handler';
 
+const HEALTH_PATH = '/health';
+
 export async function buildApp() {
   const app = Fastify();
   await app.register(cors, { origin: '*' });
 
   app.addHook('onRequest', async (req, reply) => {
     console.log(req.method, req.url);
+    // The platform calls the health check without a key.
+    if (req.routeOptions.url === HEALTH_PATH) {
+      return;
+    }
     if (process.env.API_KEY && req.headers['x-api-key'] !== process.env.API_KEY) {
       return reply.code(401).send({ error: 'Unauthorized' });
     }
   });
+
+  // Tells the platform that this replica can take requests.
+  app.get(HEALTH_PATH, async () => ({ status: 'ok' }));
 
   registerErrorHandler(app);
   registerRoutes(app);
