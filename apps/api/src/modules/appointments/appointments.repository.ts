@@ -1,9 +1,10 @@
-import { and, eq, inArray, like, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, isNull, like, type SQL } from 'drizzle-orm';
 import { LEGACY_CANCELLED_STATUS, appointmentStatusSchema, type ListAppointmentsQuery } from '@venue/contract';
 import { db } from '../../db';
 import { appointments, customers, treatments } from '../../db/schema';
 
 const CANCELLED = appointmentStatusSchema.enum.cancelled;
+const CONFIRMED = appointmentStatusSchema.enum.confirmed;
 
 type AppointmentRecord = typeof appointments.$inferSelect;
 type NewAppointmentRecord = typeof appointments.$inferInsert;
@@ -60,6 +61,16 @@ export function listAppointmentRowsOfCustomer(customerId: number): AppointmentRo
 
 export function listAppointmentStatusesAndPrices(): Pick<AppointmentRecord, 'status' | 'price'>[] {
   return db.select({ status: appointments.status, price: appointments.price }).from(appointments).all();
+}
+
+export function listConfirmedAppointmentRowsWithoutReminder(): AppointmentRow[] {
+  return selectAppointmentRows()
+    .where(and(eq(appointments.status, CONFIRMED), isNull(appointments.reminderSentAt)))
+    .all();
+}
+
+export function markReminderSent(id: number, at: number): void {
+  db.update(appointments).set({ reminderSentAt: at }).where(eq(appointments.id, id)).run();
 }
 
 export function insertAppointment(values: NewAppointmentRecord): AppointmentRecord {

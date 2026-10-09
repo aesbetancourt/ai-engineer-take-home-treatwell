@@ -1,30 +1,23 @@
-import { and, eq, isNull } from 'drizzle-orm';
-import { db } from '../db';
-import { appointments, customers, treatments } from '../db/schema';
 import { sendEmail } from '../mailer';
+import * as repository from '../modules/appointments/appointments.repository';
 
 const EVERY_MINUTE = 60 * 1000;
 const DAY = 24 * 60 * 60 * 1000;
 
-// Emails the customer once, during the 24 hours before a confirmed appointment.
-async function sendDueReminders() {
-  const due = await db
-    .select()
-    .from(appointments)
-    .where(and(eq(appointments.status, 'confirmed'), isNull(appointments.reminderSentAt)));
+type SendEmail = typeof sendEmail;
 
-  for (const a of due) {
-    const startsIn = new Date(a.startsAt).getTime() - Date.now();
+/** Emails the customer once, during the 24 hours before a confirmed appointment. */
+export async function sendDueReminders(send: SendEmail = sendEmail, now: number = Date.now()) {
+  for (const { appointment, customer, treatment } of repository.listConfirmedAppointmentRowsWithoutReminder()) {
+    const startsIn = new Date(appointment.startsAt).getTime() - now;
     if (startsIn < 0 || startsIn > DAY) continue;
 
-    const c = await db.select().from(customers).where(eq(customers.id, a.customerId));
-    const t = await db.select().from(treatments).where(eq(treatments.id, a.treatmentId));
-    await sendEmail(
-      c[0].email,
+    await send(
+      customer.email,
       'See you tomorrow',
-      'Hi ' + c[0].name + ', this is a reminder of your ' + t[0].name + ' on ' + new Date(a.startsAt).toLocaleString()
+      'Hi ' + customer.name + ', this is a reminder of your ' + treatment.name + ' on ' + new Date(appointment.startsAt).toLocaleString()
     );
-    await db.update(appointments).set({ reminderSentAt: Date.now() }).where(eq(appointments.id, a.id));
+    repository.markReminderSent(appointment.id, Date.now());
   }
 }
 
