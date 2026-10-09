@@ -109,4 +109,16 @@ describe('the reminder job', () => {
 
     expect(mailer.sent).toHaveLength(0);
   });
+
+  it('states the start time in venue time in the email', async () => {
+    // 20:00 UTC on 5 October is 22:00 in the venue.
+    addAppointment('2026-10-05T20:00:00.000Z');
+    const mailer = fakeMailer();
+
+    await sendDueReminders(mailer.send, NOW);
+
+    // The exact text comes from `Intl`, so the test reads the date and the hour only.
+    expect(mailer.sent[0].body).toContain('5 October 2026');
+    expect(mailer.sent[0].body).toContain('22:00');
+  });
 });
