@@ -43,6 +43,13 @@
       "when": 1791580777286,
       "tag": "0005_appointment_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791582502199,
+      "tag": "0006_fix_canceled_status",
+      "breakpoints": true
     }
   ]
 }
