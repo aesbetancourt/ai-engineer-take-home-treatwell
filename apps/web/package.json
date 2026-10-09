@@ -8,6 +8,7 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@venue/contract": "workspace:*",
     "dayjs": "^1.11.13",
     "next": "16.3.8",
     "react": "19.3.0",
