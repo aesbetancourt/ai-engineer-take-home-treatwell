@@ -70,3 +70,28 @@ describe('POST /appointments: overlap', () => {
     });
   });
 });
+
+describe('PATCH /appointments/:id: overlap', () => {
+  it('rejects a new start time that overlaps another appointment of the customer', async () => {
+    // Customer 1 has a cut from 09:00 to 10:00 on 2026-10-05, and appointment 9 on 2026-10-08.
+    const res = await api.patch('/appointments/9', { startsAt: '2026-10-05T09:30:00.000Z' });
+    expect(res.status).toBe(409);
+
+    const fetched = await api.get('/appointments/9');
+    expect(fetched.body.startsAt).toBe('2026-10-08T11:00:00.000Z');
+  });
+
+  it('accepts a new start time that overlaps only the old time of the same appointment', async () => {
+    // Appointment 9 is 45 minutes from 11:00. A move to 11:15 overlaps only itself.
+    const res = await api.patch('/appointments/9', { startsAt: '2026-10-08T11:15:00.000Z' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ startsAt: '2026-10-08T11:15:00.000Z', endsAt: '2026-10-08T12:00:00.000Z' });
+  });
+
+  it('accepts a new start time for a cancelled appointment, whatever it overlaps', async () => {
+    // Appointment 6 is cancelled. Customer 6 has a massage from 12:00 to 13:00 on 2026-10-09.
+    const res = await api.patch('/appointments/6', { startsAt: '2026-10-09T12:15:00.000Z' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ status: 'cancelled', startsAt: '2026-10-09T12:15:00.000Z' });
+  });
+});

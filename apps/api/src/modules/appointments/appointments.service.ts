@@ -43,6 +43,30 @@ export function getAppointment(id: number): Appointment {
   return toAppointment(row);
 }
 
+type OverlapCheck = { customerId: number; startsAt: string; durationMin: number; ignoreAppointmentId?: number };
+
+function isCancelled(status: string): boolean {
+  return CANCELLED_STATUSES.includes(status);
+}
+
+/** Rejects a start time that makes an overlap with another appointment of the customer. Cancelled appointments do not count. */
+function assertNoOverlap({ customerId, startsAt, durationMin, ignoreAppointmentId }: OverlapCheck): void {
+  const start = new Date(startsAt).getTime();
+  const end = start + durationMin * MINUTE;
+  const hasOverlap = repository.listAppointmentRowsOfCustomer(customerId).some((existing) => {
+    if (existing.appointment.id === ignoreAppointmentId || isCancelled(existing.appointment.status)) {
+      return false;
+    }
+    const existingStart = new Date(existing.appointment.startsAt).getTime();
+    const existingEnd = existingStart + existing.treatment.durationMin * MINUTE;
+    // Back-to-back is fine: an appointment can start at the instant another one ends.
+    return start < existingEnd && end > existingStart;
+  });
+  if (hasOverlap) {
+    throw new ConflictError('Customer already has an appointment at this time');
+  }
+}
+
 /** Books a pending appointment. The price is copied from the treatment, and a customer cannot be double-booked. */
 export function createAppointment(body: CreateAppointmentBody): Appointment {
   const customer = repository.findCustomer(body.customerId);
@@ -54,21 +78,7 @@ export function createAppointment(body: CreateAppointmentBody): Appointment {
     throw new NotFoundError('Treatment not found');
   }
 
-  const start = new Date(body.startsAt).getTime();
-  const end = start + treatment.durationMin * MINUTE;
-  const hasOverlap = repository.listAppointmentRowsOfCustomer(customer.id).some((existing) => {
-    // A cancelled appointment does not count.
-    if (CANCELLED_STATUSES.includes(existing.appointment.status)) {
-      return false;
-    }
-    const existingStart = new Date(existing.appointment.startsAt).getTime();
-    const existingEnd = existingStart + existing.treatment.durationMin * MINUTE;
-    // Back-to-back is fine: an appointment can start at the instant another one ends.
-    return start < existingEnd && end > existingStart;
-  });
-  if (hasOverlap) {
-    throw new ConflictError('Customer already has an appointment at this time');
-  }
+  assertNoOverlap({ customerId: customer.id, startsAt: body.startsAt, durationMin: treatment.durationMin });
 
   const appointment = repository.insertAppointment({
     customerId: customer.id,
@@ -82,8 +92,21 @@ export function createAppointment(body: CreateAppointmentBody): Appointment {
   return toAppointment({ appointment, customer, treatment });
 }
 
-/** Changes the status, the notes or the start time of an appointment. */
+/** Changes the status, the notes or the start time of an appointment. A new start time cannot double-book the customer. */
 export function updateAppointment(id: number, body: UpdateAppointmentBody): Appointment {
+  const row = repository.findAppointmentRow(id);
+  if (!row) {
+    throw new NotFoundError('Appointment not found');
+  }
+  const status = body.status ?? row.appointment.status;
+  if (body.startsAt !== undefined && !isCancelled(status)) {
+    assertNoOverlap({
+      customerId: row.customer.id,
+      startsAt: body.startsAt,
+      durationMin: row.treatment.durationMin,
+      ignoreAppointmentId: id,
+    });
+  }
   repository.updateAppointment(id, body);
   return getAppointment(id);
 }
