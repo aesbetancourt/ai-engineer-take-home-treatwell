@@ -1,0 +1,16 @@
+# The build context is the repo root, because both images need the workspace files and the contract package.
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/*.db
+**/*.db-*
+apps/api/data
+apps/api/test
+apps/api/.db-check-*
+.git
+.scratch
+.env*
+**/.env*
+docs
+*.md
