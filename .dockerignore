@@ -13,4 +13,7 @@ apps/api/.db-check-*
 .env*
 **/.env*
 docs
-*.md
+**/*.md
+**/*.tsbuildinfo
+.claude
+**/.claude

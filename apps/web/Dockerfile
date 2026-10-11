@@ -28,4 +28,7 @@ COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
 USER node
 EXPOSE 3000
+# The image has no curl, so node makes the request. The overview page needs no API call on the server.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:' + process.env.PORT + '/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 CMD ["node", "apps/web/server.js"]
