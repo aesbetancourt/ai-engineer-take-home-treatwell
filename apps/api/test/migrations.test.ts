@@ -24,8 +24,12 @@ function newDatabasePath(): string {
   return path.join(dir, `test-${databaseCount}.db`);
 }
 
+function runScript(script: 'db:migrate' | 'db:seed', dbPath: string) {
+  return spawnSync('yarn', ['run', script], { cwd: apiRoot, env: { ...process.env, DB_PATH: dbPath }, encoding: 'utf8' });
+}
+
 function migrate(dbPath: string) {
-  return spawnSync('yarn', ['run', 'db:migrate'], { cwd: apiRoot, env: { ...process.env, DB_PATH: dbPath }, encoding: 'utf8' });
+  return runScript('db:migrate', dbPath);
 }
 
 /** Starts the API and waits until it answers. The test starts `node` itself, so it can stop the process. */
@@ -133,5 +137,32 @@ describe('a start of the API', () => {
     await startApi(dbPath, { NODE_ENV: 'development', SEED_ON_BOOT: '' });
 
     expect(rowsIn(dbPath, 'appointments')).toBe(14);
+  });
+});
+
+describe('yarn db:seed', () => {
+  it('replaces the data of each table, also the staff members and the audit entries', () => {
+    const dbPath = newDatabasePath();
+    expect(migrate(dbPath).status).toBe(0);
+    // The use of the API leaves data in the two tables that have no sample data.
+    const sqlite = new Database(dbPath);
+    try {
+      sqlite
+        .prepare("INSERT INTO staff (name, email, created_at) VALUES ('Anna Vogel', 'anna.vogel@example.com', '2026-10-01T09:00:00.000Z')")
+        .run();
+      sqlite
+        .prepare("INSERT INTO appointment_audit (appointment_id, action, at, changes) VALUES (1, 'update', '2026-10-01T09:00:00.000Z', '{}')")
+        .run();
+    } finally {
+      sqlite.close();
+    }
+
+    const run = runScript('db:seed', dbPath);
+
+    expect(run.status).toBe(0);
+    expect(rowsIn(dbPath, 'staff')).toBe(0);
+    expect(rowsIn(dbPath, 'appointment_audit')).toBe(0);
+    expect(rowsIn(dbPath, 'appointments')).toBe(14);
+    expect(rowsIn(dbPath, 'customers')).toBe(8);
   });
 });

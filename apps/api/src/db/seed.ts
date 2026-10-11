@@ -1,5 +1,5 @@
 import { db } from './index';
-import { appointmentAudit, appointments, customers, treatments } from './schema';
+import { appointmentAudit, appointments, customers, staff, treatments } from './schema';
 
 const day = (n: number) => `2026-10-${String(n).padStart(2, '0')}`;
 const created = 1759300000000;
@@ -7,6 +7,8 @@ const created = 1759300000000;
 export function seed() {
   // The seed gives the appointments their ids again, so each audit trail from before the seed must go.
   db.delete(appointmentAudit).run();
+  // The seed replaces all data. Staff members have no sample data, so the table is empty after it.
+  db.delete(staff).run();
   db.delete(appointments).run();
   db.delete(customers).run();
   db.delete(treatments).run();
