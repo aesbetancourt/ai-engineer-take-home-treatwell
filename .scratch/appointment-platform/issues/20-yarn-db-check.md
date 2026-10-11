@@ -4,11 +4,11 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `yarn db:check` exists in the API package and at the root
-- [ ] It passes on a schema that the migrations cover
-- [ ] It fails with a non-zero exit code when the schema has an uncovered change
-- [ ] It fails when drizzle-kit gives no clear result; it does not trust the exit code of `generate`
-- [ ] It leaves no file behind in either case
-- [ ] `yarn verify` runs it
+- [x] `yarn db:check` exists in the API package and at the root
+- [x] It passes on a schema that the migrations cover
+- [x] It fails with a non-zero exit code when the schema has an uncovered change
+- [x] It fails when drizzle-kit gives no clear result; it does not trust the exit code of `generate`
+- [x] It leaves no file behind in either case
+- [x] `yarn verify` runs it
